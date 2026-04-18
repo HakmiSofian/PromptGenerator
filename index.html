@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Prompt Kit pour Claude Code</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  .step { display: none; }
+  .step.active { display: block; }
+  .pill { transition: all 0.15s ease; }
+  .pill:hover { transform: translateY(-1px); }
+  .pill.selected { background-color: #4f46e5; color: white; border-color: #4f46e5; }
+  pre { white-space: pre-wrap; word-break: break-word; }
+</style>
+</head>
+<body class="bg-slate-50 min-h-screen text-slate-800">
+
+<div class="max-w-3xl mx-auto px-4 py-10">
+
+  <header class="mb-8 text-center">
+    <h1 class="text-3xl md:text-4xl font-bold text-slate-900">Prompt Kit pour Claude Code</h1>
+    <p class="mt-2 text-slate-600">Décris ce que tu veux faire en français normal. On te donne le bon prompt, le bon modèle et le kit mémoire à coller dans Claude Code.</p>
+  </header>
+
+  <!-- Progress -->
+  <div class="mb-6">
+    <div class="flex items-center justify-between text-xs text-slate-500 mb-2">
+      <span id="progressLabel">Étape 1 / 4</span>
+      <button id="resetBtn" class="underline hover:text-slate-700 hidden">Recommencer</button>
+    </div>
+    <div class="h-1.5 bg-slate-200 rounded-full overflow-hidden">
+      <div id="progressBar" class="h-full bg-indigo-600 transition-all" style="width: 25%"></div>
+    </div>
+  </div>
+
+  <main class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 md:p-8">
+
+    <!-- STEP 1 : Objectif -->
+    <section class="step active" data-step="1">
+      <h2 class="text-xl font-semibold mb-2">1. Qu'est-ce que tu veux faire ?</h2>
+      <p class="text-slate-500 text-sm mb-4">Décris-le comme si tu parlais à un ami. Pas besoin de jargon technique.</p>
+      <textarea id="goal" rows="5" class="w-full border border-slate-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Exemple : Je veux un site web simple pour ma boulangerie avec les horaires, les produits et un formulaire de contact."></textarea>
+      <div class="flex justify-end mt-4">
+        <button class="nextBtn bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-5 py-2 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed" disabled>Suivant</button>
+      </div>
+    </section>
+
+    <!-- STEP 2 : Type de tâche -->
+    <section class="step" data-step="2">
+      <h2 class="text-xl font-semibold mb-2">2. Quel type de tâche ?</h2>
+      <p class="text-slate-500 text-sm mb-4">Choisis ce qui correspond le mieux.</p>
+      <div id="taskTypeGroup" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <button class="pill border-2 border-slate-200 rounded-lg p-4 text-left" data-value="create">
+          <div class="font-medium">Créer un nouveau projet</div>
+          <div class="text-xs text-slate-500 mt-1">Site, app, script, outil de zéro</div>
+        </button>
+        <button class="pill border-2 border-slate-200 rounded-lg p-4 text-left" data-value="modify">
+          <div class="font-medium">Modifier un projet existant</div>
+          <div class="text-xs text-slate-500 mt-1">Ajouter une fonctionnalité, changer un comportement</div>
+        </button>
+        <button class="pill border-2 border-slate-200 rounded-lg p-4 text-left" data-value="bug">
+          <div class="font-medium">Corriger un bug</div>
+          <div class="text-xs text-slate-500 mt-1">Quelque chose ne marche pas comme prévu</div>
+        </button>
+        <button class="pill border-2 border-slate-200 rounded-lg p-4 text-left" data-value="understand">
+          <div class="font-medium">Comprendre du code</div>
+          <div class="text-xs text-slate-500 mt-1">Expliquer, documenter, analyser</div>
+        </button>
+        <button class="pill border-2 border-slate-200 rounded-lg p-4 text-left" data-value="script">
+          <div class="font-medium">Automatiser une tâche</div>
+          <div class="text-xs text-slate-500 mt-1">Script, renommage, conversion, scraping</div>
+        </button>
+        <button class="pill border-2 border-slate-200 rounded-lg p-4 text-left" data-value="refactor">
+          <div class="font-medium">Améliorer / refactorer</div>
+          <div class="text-xs text-slate-500 mt-1">Code plus propre, plus rapide, mieux structuré</div>
+        </button>
+      </div>
+      <div class="flex justify-between mt-6">
+        <button class="prevBtn text-slate-600 hover:text-slate-900 px-4 py-2">← Retour</button>
+        <button class="nextBtn bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-5 py-2 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed" disabled>Suivant</button>
+      </div>
+    </section>
+
+    <!-- STEP 3 : Complexité -->
+    <section class="step" data-step="3">
+      <h2 class="text-xl font-semibold mb-2">3. Quelle ampleur ?</h2>
+      <p class="text-slate-500 text-sm mb-4">Sers-toi de ton intuition, ce n'est pas une science exacte.</p>
+      <div id="sizeGroup" class="space-y-3">
+        <button class="pill w-full border-2 border-slate-200 rounded-lg p-4 text-left" data-value="small">
+          <div class="font-medium">Petit · quelques minutes</div>
+          <div class="text-xs text-slate-500 mt-1">Un fichier, une fonction, une question simple</div>
+        </button>
+        <button class="pill w-full border-2 border-slate-200 rounded-lg p-4 text-left" data-value="medium">
+          <div class="font-medium">Moyen · une session d'1-2 heures</div>
+          <div class="text-xs text-slate-500 mt-1">Plusieurs fichiers, une fonctionnalité complète</div>
+        </button>
+        <button class="pill w-full border-2 border-slate-200 rounded-lg p-4 text-left" data-value="large">
+          <div class="font-medium">Gros · plusieurs sessions</div>
+          <div class="text-xs text-slate-500 mt-1">Projet entier, architecture, refonte</div>
+        </button>
+      </div>
+      <div class="flex justify-between mt-6">
+        <button class="prevBtn text-slate-600 hover:text-slate-900 px-4 py-2">← Retour</button>
+        <button class="nextBtn bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-5 py-2 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed" disabled>Suivant</button>
+      </div>
+    </section>
+
+    <!-- STEP 4 : Contexte optionnel -->
+    <section class="step" data-step="4">
+      <h2 class="text-xl font-semibold mb-2">4. Contexte (optionnel)</h2>
+      <p class="text-slate-500 text-sm mb-4">Ajoute tout ce qui peut aider : technos que tu connais ou préfères, contraintes, ce que tu as déjà essayé.</p>
+      <textarea id="context" rows="4" class="w-full border border-slate-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Exemple : je préfère quelque chose de simple sans base de données ; ça doit tourner sur mon Mac."></textarea>
+
+      <label class="flex items-start gap-3 mt-4 cursor-pointer">
+        <input type="checkbox" id="coachMode" class="mt-1 h-4 w-4 accent-indigo-600" checked />
+        <span class="text-sm text-slate-700">
+          <strong>Mode coach</strong> — inclure les explications (pourquoi ce modèle, pourquoi cette structure). Décoche si tu veux juste le prompt brut.
+        </span>
+      </label>
+
+      <div class="flex justify-between mt-6">
+        <button class="prevBtn text-slate-600 hover:text-slate-900 px-4 py-2">← Retour</button>
+        <button id="generateBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-5 py-2 rounded-lg">Générer mon kit</button>
+      </div>
+    </section>
+
+    <!-- RESULT -->
+    <section class="step" data-step="result">
+      <h2 class="text-xl font-semibold mb-2">Ton kit Claude Code est prêt</h2>
+      <p class="text-slate-500 text-sm mb-6">Suis les étapes dans l'ordre. Chaque bloc se copie en un clic.</p>
+
+      <div id="modelCard" class="mb-6 p-4 bg-indigo-50 border border-indigo-200 rounded-lg"></div>
+
+      <div class="mb-6">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="font-semibold">📄 CLAUDE.md <span class="text-xs font-normal text-slate-500">— la mémoire de ton projet</span></h3>
+          <button class="copyBtn text-xs bg-slate-900 text-white px-3 py-1.5 rounded hover:bg-slate-700" data-target="claudemd">Copier</button>
+        </div>
+        <pre id="claudemd" class="bg-slate-900 text-slate-100 text-sm p-4 rounded-lg overflow-x-auto"></pre>
+        <p class="text-xs text-slate-500 mt-2">Colle ce contenu dans un fichier nommé <code>CLAUDE.md</code> à la racine de ton projet. Claude Code le lira à chaque session.</p>
+      </div>
+
+      <div class="mb-6">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="font-semibold">🚀 Prompt initial <span class="text-xs font-normal text-slate-500">— à envoyer en premier dans Claude Code</span></h3>
+          <button class="copyBtn text-xs bg-slate-900 text-white px-3 py-1.5 rounded hover:bg-slate-700" data-target="initialPrompt">Copier</button>
+        </div>
+        <pre id="initialPrompt" class="bg-slate-900 text-slate-100 text-sm p-4 rounded-lg overflow-x-auto"></pre>
+      </div>
+
+      <div class="mb-6">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="font-semibold">🔁 Prompts de suivi <span class="text-xs font-normal text-slate-500">— à utiliser au fil du travail</span></h3>
+        </div>
+        <div id="followups" class="space-y-3"></div>
+      </div>
+
+      <div id="howto" class="p-4 bg-amber-50 border border-amber-200 rounded-lg text-sm"></div>
+
+      <div class="flex justify-center mt-8">
+        <button id="restartBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-5 py-2 rounded-lg">Générer un autre kit</button>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="text-center text-xs text-slate-400 mt-8">
+    MVP · 100% local · aucune donnée envoyée nulle part
+  </footer>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
