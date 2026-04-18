@@ -51,6 +51,14 @@ export type Issue = {
   detail: string;
 };
 
+export type ProviderName = "anthropic" | "openai" | "google";
+
+export type ProvidersUsed = {
+  analyst?: ProviderName;
+  writer?: ProviderName;
+  critic?: ProviderName;
+};
+
 export type CreateResult = {
   mode: "create";
   source: "llm" | "template";
@@ -59,6 +67,7 @@ export type CreateResult = {
   initialPrompt: string;
   followups: Followup[];
   howto: string;
+  providersUsed?: ProvidersUsed;
 };
 
 export type ImproveResult = {
@@ -66,6 +75,7 @@ export type ImproveResult = {
   source: "llm" | "template";
   issues: Issue[];
   improvedPrompt: string;
+  providersUsed?: ProvidersUsed;
 };
 
 export type GenerateResult = CreateResult | ImproveResult;

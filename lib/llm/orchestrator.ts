@@ -103,7 +103,7 @@ async function runCreateChain(
     role: "analyst",
     label: "🔍 L'analyste extrait les specs…",
   });
-  const specs = await runAnalystCreate(req);
+  const analyst = await runAnalystCreate(req);
   emit({ type: "role-complete", role: "analyst" });
 
   emit({
@@ -111,7 +111,7 @@ async function runCreateChain(
     role: "writer",
     label: "✍️ Le rédacteur écrit le kit…",
   });
-  const draft = await runWriterCreate(req, specs);
+  const writer = await runWriterCreate(req, analyst.output);
   emit({ type: "role-complete", role: "writer" });
 
   emit({
@@ -119,17 +119,22 @@ async function runCreateChain(
     role: "critic",
     label: "🔎 Le critique relit et corrige…",
   });
-  const final = await runCriticCreate(req, specs, draft);
+  const critic = await runCriticCreate(req, analyst.output, writer.output);
   emit({ type: "role-complete", role: "critic" });
 
   return {
     mode: "create",
     source: "llm",
-    model: modelFromAnalyst(specs, req),
-    claudeMd: final.claudeMd,
-    initialPrompt: final.initialPrompt,
-    followups: final.followups,
-    howto: final.howto,
+    model: modelFromAnalyst(analyst.output, req),
+    claudeMd: critic.output.claudeMd,
+    initialPrompt: critic.output.initialPrompt,
+    followups: critic.output.followups,
+    howto: critic.output.howto,
+    providersUsed: {
+      analyst: analyst.provider,
+      writer: writer.provider,
+      critic: critic.provider,
+    },
   };
 }
 
@@ -142,7 +147,7 @@ async function runImproveChain(
     role: "analyst",
     label: "🩺 L'analyste diagnostique le prompt…",
   });
-  const diagnosis = await runAnalystImprove(req);
+  const analyst = await runAnalystImprove(req);
   emit({ type: "role-complete", role: "analyst" });
 
   emit({
@@ -150,14 +155,18 @@ async function runImproveChain(
     role: "writer",
     label: "✨ Le rédacteur réécrit le prompt…",
   });
-  const rewritten = await runWriterImprove(req, diagnosis);
+  const writer = await runWriterImprove(req, analyst.output);
   emit({ type: "role-complete", role: "writer" });
 
   return {
     mode: "improve",
     source: "llm",
-    issues: diagnosis.issues,
-    improvedPrompt: rewritten.improvedPrompt,
+    issues: analyst.output.issues,
+    improvedPrompt: writer.output.improvedPrompt,
+    providersUsed: {
+      analyst: analyst.provider,
+      writer: writer.provider,
+    },
   };
 }
 
@@ -166,9 +175,17 @@ function modelFromAnalyst(
   req: CreateRequest
 ): ModelRecommendation {
   const templateFallback = recommendModel(req.taskType, req.size);
+  const allowedStrategies: ModelRecommendation["strategy"][] = [
+    "solo",
+    "solo-with-plan",
+    "advisor",
+  ];
+  const strategy = allowedStrategies.includes(specs.recommendedStrategy)
+    ? specs.recommendedStrategy
+    : templateFallback.strategy;
   return {
     primary: specs.recommendedModel || templateFallback.primary,
-    strategy: specs.recommendedStrategy || templateFallback.strategy,
+    strategy,
     reason: specs.modelRationale || templateFallback.reason,
     switchCmd: specs.switchCmd || templateFallback.switchCmd,
   };

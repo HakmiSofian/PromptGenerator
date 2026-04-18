@@ -1,8 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
+import type { Role } from "@/lib/llm/assignment";
 
-export type AnthropicRole = "analyst" | "writer" | "critic";
-
-const MODEL_BY_ROLE: Record<AnthropicRole, string> = {
+const MODEL_BY_ROLE: Record<Role, string> = {
   analyst: "claude-haiku-4-5-20251001",
   writer: "claude-sonnet-4-6",
   critic: "claude-opus-4-7",
@@ -13,7 +12,7 @@ export function isAnthropicConfigured(): boolean {
 }
 
 export async function callAnthropic(params: {
-  role: AnthropicRole;
+  role: Role;
   systemPrompt: string;
   userMessage: string;
   maxTokens?: number;

@@ -2,6 +2,7 @@
 
 import type { CreateResult } from "@/lib/types";
 import { CopyButton, DownloadButton } from "./CopyButton";
+import CommitteeRibbon from "./CommitteeRibbon";
 
 export default function ResultView({
   result,
@@ -12,7 +13,7 @@ export default function ResultView({
   coach: boolean;
   onRestart: () => void;
 }) {
-  const { model, claudeMd, initialPrompt, followups, howto, source } = result;
+  const { model, claudeMd, initialPrompt, followups, howto, source, providersUsed } = result;
 
   return (
     <section>
@@ -23,6 +24,8 @@ export default function ResultView({
       <p className="text-slate-500 text-sm mb-6">
         Suis les étapes dans l&apos;ordre. Chaque bloc se copie en un clic.
       </p>
+
+      {providersUsed && <CommitteeRibbon providers={providersUsed} />}
 
       <div className="mb-6 p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
         <div className="flex items-start gap-3">

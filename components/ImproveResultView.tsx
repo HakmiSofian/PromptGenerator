@@ -2,6 +2,7 @@
 
 import type { ImproveResult, Issue } from "@/lib/types";
 import { CopyButton } from "./CopyButton";
+import CommitteeRibbon from "./CommitteeRibbon";
 
 const SEVERITY_STYLES: Record<
   Issue["severity"],
@@ -28,6 +29,8 @@ export default function ImproveResultView({
       <p className="text-slate-500 text-sm mb-6">
         Voici ce qui manquait et la version corrigée.
       </p>
+
+      {result.providersUsed && <CommitteeRibbon providers={result.providersUsed} />}
 
       <div className="mb-6">
         <h3 className="font-semibold mb-2">🩺 Ce qui clochait</h3>

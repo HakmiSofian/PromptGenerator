@@ -1,5 +1,8 @@
 import { callAnthropic } from "@/lib/llm/providers/anthropic";
+import { callOpenAI } from "@/lib/llm/providers/openai";
+import { callGoogle } from "@/lib/llm/providers/google";
 import { extractJson } from "@/lib/llm/json";
+import { pickProvider, type Provider, type Role } from "@/lib/llm/assignment";
 import {
   ANALYST_SYSTEM_PROMPT,
   IMPROVE_ANALYST_SYSTEM_PROMPT,
@@ -38,9 +41,7 @@ export type WriterCreateOutput = {
   howto: string;
 };
 
-export type CriticCreateOutput = WriterCreateOutput & {
-  issues: Issue[];
-};
+export type CriticCreateOutput = WriterCreateOutput & { issues: Issue[] };
 
 export type AnalystImproveOutput = {
   issues: Issue[];
@@ -49,13 +50,57 @@ export type AnalystImproveOutput = {
   missingContext: string[];
 };
 
-export type WriterImproveOutput = {
-  improvedPrompt: string;
-};
+export type WriterImproveOutput = { improvedPrompt: string };
 
-export async function runAnalystCreate(
-  req: CreateRequest
-): Promise<AnalystCreateOutput> {
+/**
+ * Generic dispatcher: call the right provider for a given role.
+ * Falls back to Anthropic if the chosen provider returns null (e.g. key
+ * disappeared at runtime).
+ */
+async function callLlm(params: {
+  role: Role;
+  provider: Provider;
+  systemPrompt: string;
+  userMessage: string;
+  maxTokens?: number;
+}): Promise<string | null> {
+  const common = {
+    role: params.role,
+    systemPrompt: params.systemPrompt,
+    userMessage: params.userMessage,
+    maxTokens: params.maxTokens,
+  };
+
+  if (params.provider === "anthropic") return callAnthropic(common);
+  if (params.provider === "openai") return callOpenAI(common);
+  if (params.provider === "google")
+    return callGoogle({
+      role: params.role,
+      systemPrompt: params.systemPrompt,
+      userMessage: params.userMessage,
+    });
+  return null;
+}
+
+async function runRole<T>(
+  role: Role,
+  systemPrompt: string,
+  userMessage: string,
+  maxTokens: number
+): Promise<{ output: T; provider: Provider }> {
+  const provider = pickProvider(role);
+  const raw = await callLlm({
+    role,
+    provider,
+    systemPrompt,
+    userMessage,
+    maxTokens,
+  });
+  if (!raw) throw new Error(`${role} (${provider}) : aucune réponse`);
+  return { output: extractJson<T>(raw), provider };
+}
+
+export async function runAnalystCreate(req: CreateRequest) {
   const userMessage = JSON.stringify(
     {
       goalFromUser: req.goal,
@@ -66,100 +111,76 @@ export async function runAnalystCreate(
     null,
     2
   );
-
-  const raw = await callAnthropic({
-    role: "analyst",
-    systemPrompt: ANALYST_SYSTEM_PROMPT,
+  return runRole<AnalystCreateOutput>(
+    "analyst",
+    ANALYST_SYSTEM_PROMPT,
     userMessage,
-    maxTokens: 1200,
-  });
-  if (!raw) throw new Error("Analyste : aucune réponse");
-  return extractJson<AnalystCreateOutput>(raw);
+    1200
+  );
 }
 
 export async function runWriterCreate(
   req: CreateRequest,
   specs: AnalystCreateOutput
-): Promise<WriterCreateOutput> {
+) {
   const userMessage = JSON.stringify(
     { originalRequest: req, specsFromAnalyst: specs },
     null,
     2
   );
-
-  const raw = await callAnthropic({
-    role: "writer",
-    systemPrompt: WRITER_SYSTEM_PROMPT,
+  return runRole<WriterCreateOutput>(
+    "writer",
+    WRITER_SYSTEM_PROMPT,
     userMessage,
-    maxTokens: 4096,
-  });
-  if (!raw) throw new Error("Rédacteur : aucune réponse");
-  return extractJson<WriterCreateOutput>(raw);
+    4096
+  );
 }
 
 export async function runCriticCreate(
   req: CreateRequest,
   specs: AnalystCreateOutput,
   draft: WriterCreateOutput
-): Promise<CriticCreateOutput> {
+) {
   const userMessage = JSON.stringify(
-    {
-      originalRequest: req,
-      specsFromAnalyst: specs,
-      draftFromWriter: draft,
-    },
+    { originalRequest: req, specsFromAnalyst: specs, draftFromWriter: draft },
     null,
     2
   );
-
-  const raw = await callAnthropic({
-    role: "critic",
-    systemPrompt: CRITIC_SYSTEM_PROMPT,
+  return runRole<CriticCreateOutput>(
+    "critic",
+    CRITIC_SYSTEM_PROMPT,
     userMessage,
-    maxTokens: 4096,
-  });
-  if (!raw) throw new Error("Critique : aucune réponse");
-  return extractJson<CriticCreateOutput>(raw);
+    4096
+  );
 }
 
-export async function runAnalystImprove(
-  req: ImproveRequest
-): Promise<AnalystImproveOutput> {
+export async function runAnalystImprove(req: ImproveRequest) {
   const userMessage = JSON.stringify(
-    {
-      originalPrompt: req.prompt,
-      claudeResponse: req.response ?? "",
-    },
+    { originalPrompt: req.prompt, claudeResponse: req.response ?? "" },
     null,
     2
   );
-
-  const raw = await callAnthropic({
-    role: "analyst",
-    systemPrompt: IMPROVE_ANALYST_SYSTEM_PROMPT,
+  return runRole<AnalystImproveOutput>(
+    "analyst",
+    IMPROVE_ANALYST_SYSTEM_PROMPT,
     userMessage,
-    maxTokens: 1500,
-  });
-  if (!raw) throw new Error("Analyste : aucune réponse");
-  return extractJson<AnalystImproveOutput>(raw);
+    1500
+  );
 }
 
 export async function runWriterImprove(
   req: ImproveRequest,
   diagnosis: AnalystImproveOutput
-): Promise<WriterImproveOutput> {
+) {
   const userMessage = JSON.stringify(
     { originalPrompt: req.prompt, diagnosisFromAnalyst: diagnosis },
     null,
     2
   );
-
-  const raw = await callAnthropic({
-    role: "writer",
-    systemPrompt: IMPROVE_WRITER_SYSTEM_PROMPT,
+  return runRole<WriterImproveOutput>(
+    "writer",
+    IMPROVE_WRITER_SYSTEM_PROMPT,
     userMessage,
-    maxTokens: 2048,
-  });
-  if (!raw) throw new Error("Rédacteur : aucune réponse");
-  return extractJson<WriterImproveOutput>(raw);
+    2048
+  );
 }
