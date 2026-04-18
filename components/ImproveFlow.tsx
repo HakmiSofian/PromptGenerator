@@ -3,40 +3,30 @@
 import { useState } from "react";
 import type { ImproveResult } from "@/lib/types";
 import ImproveResultView from "./ImproveResultView";
+import GenerationProgress from "./GenerationProgress";
+import { useGenerateStream } from "@/lib/client/useGenerateStream";
 
 export default function ImproveFlow() {
   const [prompt, setPrompt] = useState("");
   const [response, setResponse] = useState("");
-  const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ImproveResult | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const { progress, error, run, reset } = useGenerateStream();
+  const loading = progress.active;
 
   const canSubmit = prompt.trim().length >= 5 && !loading;
 
   const submit = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode: "improve", prompt, response }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error ?? "Erreur inconnue");
-      setResult(data as ImproveResult);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Erreur inconnue");
-    } finally {
-      setLoading(false);
-    }
+    await run({ mode: "improve", prompt, response }, (res) => {
+      if (res.mode !== "improve") return;
+      setResult(res);
+    });
   };
 
   const restart = () => {
     setPrompt("");
     setResponse("");
     setResult(null);
-    setError(null);
+    reset();
   };
 
   if (result) {
@@ -78,6 +68,8 @@ export default function ImproveFlow() {
           {error}
         </div>
       )}
+
+      <GenerationProgress progress={progress} mode="improve" />
 
       <div className="flex justify-end mt-4">
         <button

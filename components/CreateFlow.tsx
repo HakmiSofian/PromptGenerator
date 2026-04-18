@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react";
 import Examples, { type Example } from "./Examples";
 import ResultView from "./ResultView";
+import GenerationProgress from "./GenerationProgress";
+import { useGenerateStream } from "@/lib/client/useGenerateStream";
 import type { CreateResult, TaskType, Size } from "@/lib/types";
 
 const TASK_OPTIONS: { value: TaskType; title: string; sub: string }[] = [
@@ -27,9 +29,9 @@ export default function CreateFlow() {
   const [size, setSize] = useState<Size | "">("");
   const [context, setContext] = useState("");
   const [coach, setCoach] = useState(true);
-  const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<CreateResult | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const { progress, error, run, reset } = useGenerateStream();
+  const loading = progress.active;
 
   const progressPct = useMemo(() => {
     if (step === "result") return 100;
@@ -52,30 +54,14 @@ export default function CreateFlow() {
   };
 
   const submit = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          mode: "create",
-          goal,
-          taskType,
-          size,
-          context,
-          coach,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error ?? "Erreur inconnue");
-      setResult(data as CreateResult);
-      setStep("result");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Erreur inconnue");
-    } finally {
-      setLoading(false);
-    }
+    await run(
+      { mode: "create", goal, taskType, size, context, coach },
+      (res) => {
+        if (res.mode !== "create") return;
+        setResult(res);
+        setStep("result");
+      }
+    );
   };
 
   const restart = () => {
@@ -86,7 +72,7 @@ export default function CreateFlow() {
     setContext("");
     setCoach(true);
     setResult(null);
-    setError(null);
+    reset();
   };
 
   if (step === "result" && result) {
@@ -228,6 +214,9 @@ export default function CreateFlow() {
               {error}
             </div>
           )}
+
+          <GenerationProgress progress={progress} mode="create" />
+
           <div className="flex justify-between mt-6">
             <button
               onClick={prev}
