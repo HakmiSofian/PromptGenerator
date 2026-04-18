@@ -42,7 +42,13 @@
       <h2 class="text-xl font-semibold mb-2">1. Qu'est-ce que tu veux faire ?</h2>
       <p class="text-slate-500 text-sm mb-4">Décris-le comme si tu parlais à un ami. Pas besoin de jargon technique.</p>
       <textarea id="goal" rows="5" class="w-full border border-slate-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Exemple : Je veux un site web simple pour ma boulangerie avec les horaires, les produits et un formulaire de contact."></textarea>
-      <div class="flex justify-end mt-4">
+
+      <div class="mt-4">
+        <p class="text-xs text-slate-500 mb-2">Panne d'inspiration ? Clique sur un exemple pour démarrer :</p>
+        <div id="examples" class="grid grid-cols-1 md:grid-cols-2 gap-2"></div>
+      </div>
+
+      <div class="flex justify-end mt-6">
         <button class="nextBtn bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-5 py-2 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed" disabled>Suivant</button>
       </div>
     </section>

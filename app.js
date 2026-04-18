@@ -422,8 +422,72 @@ function bindCopyButtons() {
   });
 }
 
+// ---------- Exemples starter (pour non-devs) ----------
+const EXAMPLES = [
+  {
+    emoji: "🥖",
+    label: "Site pour mon commerce",
+    goal:
+      "Je veux un site web simple pour ma boulangerie avec les horaires d'ouverture, la liste des produits, et un formulaire de contact. Il doit être beau sur mobile.",
+    taskType: "create",
+    size: "medium",
+  },
+  {
+    emoji: "📊",
+    label: "Nettoyer un fichier Excel",
+    goal:
+      "J'ai un fichier Excel avec des ventes exportées, plein de doublons et des dates dans plusieurs formats. Je veux un script qui me sort une version propre.",
+    taskType: "script",
+    size: "small",
+  },
+  {
+    emoji: "🐛",
+    label: "Bug sur mon site",
+    goal:
+      "Sur mon site, le bouton 'Envoyer' du formulaire ne fait rien quand je clique dessus. Aide-moi à trouver pourquoi et à le réparer.",
+    taskType: "bug",
+    size: "small",
+  },
+  {
+    emoji: "🤔",
+    label: "Comprendre un projet reçu",
+    goal:
+      "Un ami développeur m'a donné le code source d'un projet. Je veux comprendre ce que ça fait, comment c'est organisé, et par où commencer pour le modifier.",
+    taskType: "understand",
+    size: "medium",
+  },
+];
+
+function renderExamples() {
+  const container = document.getElementById("examples");
+  if (!container) return;
+  container.innerHTML = "";
+  EXAMPLES.forEach((ex) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className =
+      "text-left border border-slate-200 hover:border-indigo-400 hover:bg-indigo-50 rounded-lg px-3 py-2 text-sm transition";
+    btn.innerHTML = `<span class="mr-1">${ex.emoji}</span> ${ex.label}`;
+    btn.onclick = () => {
+      state.goal = ex.goal;
+      state.taskType = ex.taskType;
+      state.size = ex.size;
+      document.getElementById("goal").value = ex.goal;
+      document.querySelectorAll("#taskTypeGroup .pill").forEach((b) =>
+        b.classList.toggle("selected", b.dataset.value === ex.taskType)
+      );
+      document.querySelectorAll("#sizeGroup .pill").forEach((b) =>
+        b.classList.toggle("selected", b.dataset.value === ex.size)
+      );
+      refreshNextButtons();
+    };
+    container.appendChild(btn);
+  });
+}
+
 // ---------- Bindings ----------
 document.addEventListener("DOMContentLoaded", () => {
+  renderExamples();
   document.getElementById("goal").addEventListener("input", (e) => {
     state.goal = e.target.value;
     refreshNextButtons();
