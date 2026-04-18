@@ -2,12 +2,16 @@
 // Tout est local, aucune requête externe.
 
 const state = {
+  mode: "create", // "create" | "improve"
   step: 1,
   goal: "",
   taskType: "",
   size: "",
   context: "",
   coach: true,
+  // improve mode
+  improvePrompt: "",
+  improveResponse: "",
 };
 
 const TOTAL_STEPS = 4;
@@ -399,6 +403,7 @@ function renderResult() {
   document.getElementById("howto").innerHTML = generateHowto();
 
   bindCopyButtons();
+  bindDownloadButtons();
 }
 
 function escapeHtml(s) {
@@ -485,9 +490,328 @@ function renderExamples() {
   });
 }
 
+// ---------- Mode switching (create / improve) ----------
+function setMode(mode) {
+  state.mode = mode;
+  const progress = document.getElementById("progressWrap");
+  const createTab = document.getElementById("modeCreateTab");
+  const improveTab = document.getElementById("modeImproveTab");
+
+  // tab visuals
+  const activeCls = ["bg-indigo-600", "text-white"];
+  const inactiveCls = ["text-slate-600", "hover:bg-slate-50"];
+  if (mode === "create") {
+    createTab.classList.add(...activeCls);
+    createTab.classList.remove(...inactiveCls);
+    improveTab.classList.remove(...activeCls);
+    improveTab.classList.add(...inactiveCls);
+    progress.style.display = "";
+    state.step = 1;
+    showStep(1);
+  } else {
+    improveTab.classList.add(...activeCls);
+    improveTab.classList.remove(...inactiveCls);
+    createTab.classList.remove(...activeCls);
+    createTab.classList.add(...inactiveCls);
+    progress.style.display = "none";
+    showStep("improve");
+  }
+}
+
+// ---------- Diagnostic du prompt ----------
+function diagnosePrompt(prompt, response) {
+  const issues = [];
+  const p = (prompt || "").trim();
+  const pLower = p.toLowerCase();
+  const r = (response || "").trim();
+  const rLower = r.toLowerCase();
+
+  // 1. Prompt vide ou trop court
+  if (p.length < 30) {
+    issues.push({
+      severity: "high",
+      label: "Prompt trop court",
+      detail:
+        "Claude doit deviner trop de choses. Ajoute au minimum le contexte (quel projet / quel fichier) et le résultat attendu.",
+    });
+  }
+
+  // 2. Mots vagues sans critère de succès
+  const vagueWords = /\b(mieux|plus propre|plus beau|plus rapide|optimise|améliore|corrige|fix|beau|joli|propre)\b/;
+  const hasCriteria = /\b(pour que|afin que|de sorte que|pour qu'il|pour qu'elle)\b/.test(pLower);
+  if (vagueWords.test(pLower) && !hasCriteria && p.length < 200) {
+    issues.push({
+      severity: "medium",
+      label: "Critères de succès flous",
+      detail:
+        "Tu utilises des mots vagues (« mieux », « plus propre »…) sans dire comment mesurer le résultat. Donne un exemple concret de ce qui doit changer.",
+    });
+  }
+
+  // 3. Pas de contexte mentionné
+  const contextWords = /\b(projet|fichier|app|appli|site|page|composant|code|script|dossier|repo|class|fonction|function|module|api)\b/;
+  if (!contextWords.test(pLower)) {
+    issues.push({
+      severity: "medium",
+      label: "Contexte manquant",
+      detail:
+        "Tu ne précises pas sur quoi Claude doit travailler. Mentionne le projet, les fichiers ou le composant concernés.",
+    });
+  }
+
+  // 4. Plusieurs tâches mélangées
+  const conjCount = (pLower.match(/\b(et|puis|ensuite|aussi|également|par ailleurs)\b/g) || []).length;
+  if (conjCount >= 3 && p.length < 400) {
+    issues.push({
+      severity: "medium",
+      label: "Plusieurs tâches mélangées",
+      detail:
+        "Tu demandes plusieurs choses en même temps. Claude fera mieux si tu sépares en prompts successifs.",
+    });
+  }
+
+  // 5. Pas de format attendu
+  const hasFormat = /\b(format|liste|étapes|bullet|résum|plan|structure|réponds|répond|explique|en français)\b/.test(pLower);
+  if (!hasFormat && p.length > 50) {
+    issues.push({
+      severity: "low",
+      label: "Pas de format de réponse demandé",
+      detail:
+        "Précise ce que tu attends en retour : un plan, du code, une explication, des étapes numérotées…",
+    });
+  }
+
+  // Response-based diagnostics
+  if (r) {
+    const missingCtx = /(je n'ai pas accès|je ne vois pas|i don't have access|i cannot see|je ne trouve pas|can you (share|show)|peux-tu (partager|montrer))/;
+    if (missingCtx.test(rLower)) {
+      issues.push({
+        severity: "high",
+        label: "Claude n'a pas vu ton code",
+        detail:
+          "Dans sa réponse, Claude signale qu'il n'a pas le contexte. Demande-lui explicitement de lire les fichiers ou précise leur chemin.",
+      });
+    }
+    const asksQuestions = /(peux-tu préciser|peux-tu clarifier|could you clarify|what do you mean|tu veux dire|tu parles de|est-ce que tu|\?)/;
+    if (asksQuestions.test(rLower) && (r.match(/\?/g) || []).length >= 2) {
+      issues.push({
+        severity: "medium",
+        label: "Prompt ambigu",
+        detail:
+          "Claude t'a posé plusieurs questions. Anticipe-les dans la prochaine version du prompt.",
+      });
+    }
+    if (r.length > 3500) {
+      issues.push({
+        severity: "low",
+        label: "Réponse très longue",
+        detail:
+          "La tâche était probablement trop vaste pour un seul prompt. Découpe-la en sous-tâches.",
+      });
+    }
+    const refused = /(i can't|i cannot|je ne peux pas|désolé|sorry)/;
+    if (refused.test(rLower) && r.length < 400) {
+      issues.push({
+        severity: "high",
+        label: "Claude a refusé ou abandonné",
+        detail:
+          "Reformule l'intention de façon plus précise, et donne-lui le contexte qui lui permet d'avancer (fichiers, objectif final).",
+      });
+    }
+  }
+
+  if (issues.length === 0) {
+    issues.push({
+      severity: "low",
+      label: "Rien d'évident à corriger",
+      detail:
+        "Ton prompt est correct sur le plan structurel. Essaie de forcer un plan (`/plan`) ou un meilleur modèle (Opus) avant de l'envoyer.",
+    });
+  }
+
+  return issues;
+}
+
+// ---------- Réécriture du prompt ----------
+function rewritePrompt(originalPrompt, issues) {
+  const hasIssue = (label) => issues.some((i) => i.label === label);
+  const parts = [];
+
+  parts.push("## Objectif");
+  parts.push(originalPrompt.trim() || "_(à compléter en 1-2 phrases claires)_");
+  parts.push("");
+
+  if (hasIssue("Contexte manquant") || hasIssue("Claude n'a pas vu ton code")) {
+    parts.push("## Contexte à charger avant d'agir");
+    parts.push(
+      "- Lis d'abord `CLAUDE.md` à la racine s'il existe.",
+      "- Explore la structure du projet et les fichiers probablement concernés.",
+      "- Résume en 3 lignes ce que tu as compris de l'existant avant de proposer quoi que ce soit."
+    );
+    parts.push("");
+  }
+
+  if (hasIssue("Critères de succès flous")) {
+    parts.push("## Critères de succès");
+    parts.push(
+      "Avant toute modification, propose-moi 2-3 critères mesurables (ex: « la page charge en moins de 2s », « le bouton affiche X »). Attends ma validation."
+    );
+    parts.push("");
+  }
+
+  if (hasIssue("Plusieurs tâches mélangées")) {
+    parts.push("## Découpage");
+    parts.push(
+      "Liste les sous-tâches dans l'ordre logique, et traite-les une par une. Attends ma validation à chaque fin de sous-tâche avant de passer à la suivante."
+    );
+    parts.push("");
+  }
+
+  if (hasIssue("Prompt ambigu") || hasIssue("Prompt trop court")) {
+    parts.push("## Avant d'écrire du code");
+    parts.push(
+      "1. Reformule en 2 lignes ce que tu as compris.",
+      "2. Liste les hypothèses que tu vas faire.",
+      "3. Si une hypothèse est bloquante, pose-moi la question au lieu de deviner."
+    );
+    parts.push("");
+  }
+
+  if (hasIssue("Claude a refusé ou abandonné")) {
+    parts.push("## Si tu bloques");
+    parts.push(
+      "Ne refuse pas en bloc. Explique précisément ce qui te manque (info, accès, décision) et propose-moi 2 pistes pour continuer."
+    );
+    parts.push("");
+  }
+
+  parts.push("## Ce que j'attends de toi");
+  parts.push(
+    "1. Propose un plan court (3-5 bullets) avant toute modification.",
+    "2. Attends ma validation avant d'agir.",
+    "3. Modifie un seul fichier à la fois et annonce ce que tu touches.",
+    "4. Termine par une phrase qui résume ce qui a changé."
+  );
+  parts.push("");
+
+  parts.push("## Format de réponse");
+  parts.push(
+    "- Réponds en français.",
+    "- Sois concis, mais clair pour un lecteur non-technique.",
+    "- Signale tout choix ambigu au lieu de trancher silencieusement."
+  );
+
+  if (hasIssue("Réponse très longue") || hasIssue("Plusieurs tâches mélangées")) {
+    parts.push("");
+    parts.push("> 💡 Avant d'exécuter, passe en mode plan (`/plan`) pour que je valide ta stratégie.");
+  }
+
+  return parts.join("\n");
+}
+
+// ---------- Rendu résultat improve ----------
+function renderImproveResult() {
+  const issues = diagnosePrompt(state.improvePrompt, state.improveResponse);
+  const improved = rewritePrompt(state.improvePrompt, issues);
+
+  const issuesEl = document.getElementById("improveIssues");
+  issuesEl.innerHTML = "";
+  const sevColor = {
+    high: { bg: "bg-rose-50", border: "border-rose-200", dot: "bg-rose-500", label: "Bloquant" },
+    medium: { bg: "bg-amber-50", border: "border-amber-200", dot: "bg-amber-500", label: "À améliorer" },
+    low: { bg: "bg-slate-50", border: "border-slate-200", dot: "bg-slate-400", label: "Mineur" },
+  };
+  issues.forEach((i) => {
+    const c = sevColor[i.severity] || sevColor.low;
+    const block = document.createElement("div");
+    block.className = `flex gap-3 p-3 rounded-lg border ${c.bg} ${c.border}`;
+    block.innerHTML = `
+      <span class="inline-block w-2.5 h-2.5 rounded-full ${c.dot} mt-1.5 shrink-0"></span>
+      <div class="flex-1">
+        <div class="flex items-center gap-2">
+          <span class="font-medium text-sm">${i.label}</span>
+          <span class="text-[10px] uppercase tracking-wide text-slate-500">${c.label}</span>
+        </div>
+        <p class="text-sm text-slate-700 mt-0.5">${i.detail}</p>
+      </div>
+    `;
+    issuesEl.appendChild(block);
+  });
+
+  document.getElementById("improvedPrompt").textContent = improved;
+
+  document.getElementById("improveHowto").innerHTML = `
+    <p class="font-semibold mb-1">Comment utiliser ce prompt amélioré ?</p>
+    <ol class="list-decimal list-inside space-y-1">
+      <li>Ouvre une nouvelle conversation dans Claude Code (ou tape <code>/clear</code>).</li>
+      <li>Colle le prompt amélioré et envoie.</li>
+      <li>Claude devrait commencer par un plan : valide-le (ou corrige-le) avant qu'il code.</li>
+    </ol>
+  `;
+
+  bindCopyButtons();
+  bindDownloadButtons();
+}
+
+// ---------- Download buttons ----------
+function bindDownloadButtons() {
+  document.querySelectorAll(".downloadBtn").forEach((btn) => {
+    btn.onclick = () => {
+      const target = document.getElementById(btn.dataset.target);
+      if (!target) return;
+      const filename = btn.dataset.filename || "fichier.txt";
+      const blob = new Blob([target.innerText], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      const old = btn.textContent;
+      btn.textContent = "Téléchargé ✓";
+      setTimeout(() => (btn.textContent = old), 1500);
+    };
+  });
+}
+
 // ---------- Bindings ----------
 document.addEventListener("DOMContentLoaded", () => {
   renderExamples();
+
+  // Mode tabs
+  document.getElementById("modeCreateTab").onclick = () => setMode("create");
+  document.getElementById("modeImproveTab").onclick = () => setMode("improve");
+
+  // Improve mode inputs
+  const improvePromptEl = document.getElementById("improvePrompt");
+  const improveResponseEl = document.getElementById("improveResponse");
+  const improveBtn = document.getElementById("improveBtn");
+
+  const refreshImproveBtn = () => {
+    improveBtn.disabled = state.improvePrompt.trim().length < 5;
+  };
+  improvePromptEl.addEventListener("input", (e) => {
+    state.improvePrompt = e.target.value;
+    refreshImproveBtn();
+  });
+  improveResponseEl.addEventListener("input", (e) => {
+    state.improveResponse = e.target.value;
+  });
+  improveBtn.onclick = () => {
+    renderImproveResult();
+    showStep("improveResult");
+  };
+  document.getElementById("improveRestartBtn").onclick = () => {
+    state.improvePrompt = "";
+    state.improveResponse = "";
+    improvePromptEl.value = "";
+    improveResponseEl.value = "";
+    refreshImproveBtn();
+    showStep("improve");
+  };
   document.getElementById("goal").addEventListener("input", (e) => {
     state.goal = e.target.value;
     refreshNextButtons();

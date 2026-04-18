@@ -24,8 +24,18 @@
     <p class="mt-2 text-slate-600">Décris ce que tu veux faire en français normal. On te donne le bon prompt, le bon modèle et le kit mémoire à coller dans Claude Code.</p>
   </header>
 
-  <!-- Progress -->
-  <div class="mb-6">
+  <!-- Mode tabs -->
+  <div id="modeTabs" class="flex gap-1 mb-4 bg-white border border-slate-200 rounded-xl p-1 shadow-sm">
+    <button id="modeCreateTab" class="mode-tab flex-1 text-sm font-medium py-2 px-3 rounded-lg bg-indigo-600 text-white">
+      ✨ Créer un kit
+    </button>
+    <button id="modeImproveTab" class="mode-tab flex-1 text-sm font-medium py-2 px-3 rounded-lg text-slate-600 hover:bg-slate-50">
+      🔧 Améliorer un prompt
+    </button>
+  </div>
+
+  <!-- Progress (create mode only) -->
+  <div id="progressWrap" class="mb-6">
     <div class="flex items-center justify-between text-xs text-slate-500 mb-2">
       <span id="progressLabel">Étape 1 / 4</span>
       <button id="resetBtn" class="underline hover:text-slate-700 hidden">Recommencer</button>
@@ -142,7 +152,10 @@
       <div class="mb-6">
         <div class="flex items-center justify-between mb-2">
           <h3 class="font-semibold">📄 CLAUDE.md <span class="text-xs font-normal text-slate-500">— la mémoire de ton projet</span></h3>
-          <button class="copyBtn text-xs bg-slate-900 text-white px-3 py-1.5 rounded hover:bg-slate-700" data-target="claudemd">Copier</button>
+          <div class="flex gap-2">
+            <button class="downloadBtn text-xs bg-white border border-slate-300 text-slate-700 px-3 py-1.5 rounded hover:bg-slate-50" data-target="claudemd" data-filename="CLAUDE.md">Télécharger</button>
+            <button class="copyBtn text-xs bg-slate-900 text-white px-3 py-1.5 rounded hover:bg-slate-700" data-target="claudemd">Copier</button>
+          </div>
         </div>
         <pre id="claudemd" class="bg-slate-900 text-slate-100 text-sm p-4 rounded-lg overflow-x-auto"></pre>
         <p class="text-xs text-slate-500 mt-2">Colle ce contenu dans un fichier nommé <code>CLAUDE.md</code> à la racine de ton projet. Claude Code le lira à chaque session.</p>
@@ -151,7 +164,10 @@
       <div class="mb-6">
         <div class="flex items-center justify-between mb-2">
           <h3 class="font-semibold">🚀 Prompt initial <span class="text-xs font-normal text-slate-500">— à envoyer en premier dans Claude Code</span></h3>
-          <button class="copyBtn text-xs bg-slate-900 text-white px-3 py-1.5 rounded hover:bg-slate-700" data-target="initialPrompt">Copier</button>
+          <div class="flex gap-2">
+            <button class="downloadBtn text-xs bg-white border border-slate-300 text-slate-700 px-3 py-1.5 rounded hover:bg-slate-50" data-target="initialPrompt" data-filename="prompt-initial.md">Télécharger</button>
+            <button class="copyBtn text-xs bg-slate-900 text-white px-3 py-1.5 rounded hover:bg-slate-700" data-target="initialPrompt">Copier</button>
+          </div>
         </div>
         <pre id="initialPrompt" class="bg-slate-900 text-slate-100 text-sm p-4 rounded-lg overflow-x-auto"></pre>
       </div>
@@ -167,6 +183,49 @@
 
       <div class="flex justify-center mt-8">
         <button id="restartBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-5 py-2 rounded-lg">Générer un autre kit</button>
+      </div>
+    </section>
+
+    <!-- IMPROVE MODE : input -->
+    <section class="step" data-step="improve">
+      <h2 class="text-xl font-semibold mb-2">Améliore un prompt qui n'a pas donné ce que tu voulais</h2>
+      <p class="text-slate-500 text-sm mb-4">Colle ton prompt initial ci-dessous. Ajoute la réponse de Claude si tu l'as, ça permet un meilleur diagnostic.</p>
+
+      <label class="block text-sm font-medium mb-1">Ton prompt original</label>
+      <textarea id="improvePrompt" rows="5" class="w-full border border-slate-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Colle ici le prompt que tu as envoyé à Claude Code…"></textarea>
+
+      <label class="block text-sm font-medium mb-1 mt-4">Réponse de Claude (optionnel)</label>
+      <textarea id="improveResponse" rows="4" class="w-full border border-slate-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Colle la réponse que tu as obtenue (ou ce que tu aurais voulu à la place)…"></textarea>
+
+      <div class="flex justify-end mt-4">
+        <button id="improveBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-5 py-2 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed" disabled>Diagnostiquer et améliorer</button>
+      </div>
+    </section>
+
+    <!-- IMPROVE MODE : result -->
+    <section class="step" data-step="improveResult">
+      <h2 class="text-xl font-semibold mb-2">Diagnostic & prompt amélioré</h2>
+      <p class="text-slate-500 text-sm mb-6">Voici ce qui manquait et la version corrigée.</p>
+
+      <div class="mb-6">
+        <h3 class="font-semibold mb-2">🩺 Ce qui clochait</h3>
+        <div id="improveIssues" class="space-y-2"></div>
+      </div>
+
+      <div class="mb-6">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="font-semibold">✨ Prompt amélioré</h3>
+          <div class="flex gap-2">
+            <button class="copyBtn text-xs bg-slate-900 text-white px-3 py-1.5 rounded hover:bg-slate-700" data-target="improvedPrompt">Copier</button>
+          </div>
+        </div>
+        <pre id="improvedPrompt" class="bg-slate-900 text-slate-100 text-sm p-4 rounded-lg overflow-x-auto"></pre>
+      </div>
+
+      <div id="improveHowto" class="p-4 bg-amber-50 border border-amber-200 rounded-lg text-sm"></div>
+
+      <div class="flex justify-center mt-8">
+        <button id="improveRestartBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-5 py-2 rounded-lg">Améliorer un autre prompt</button>
       </div>
     </section>
 
