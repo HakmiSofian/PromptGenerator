@@ -29,6 +29,20 @@ export function anyProviderConfigured(): boolean {
   );
 }
 
+export type ProvidersStatus = {
+  anthropic: boolean;
+  openai: boolean;
+  google: boolean;
+};
+
+export function getProvidersStatus(): ProvidersStatus {
+  return {
+    anthropic: isAnthropicConfigured(),
+    openai: isOpenAIConfigured(),
+    google: isGoogleConfigured(),
+  };
+}
+
 export type StreamEvent =
   | { type: "status"; message: string }
   | {
