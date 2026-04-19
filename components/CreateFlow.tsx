@@ -109,8 +109,16 @@ export default function CreateFlow({
     return <ResultView result={result} coach={coach} onRestart={restart} />;
   }
 
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+      e.preventDefault();
+      if (step === 4 && !loading) submit();
+      else if (canNext) next();
+    }
+  };
+
   return (
-    <>
+    <div onKeyDown={onKeyDown}>
       {/* Progress */}
       <div className="mb-6">
         <div className="flex items-center justify-between text-xs text-slate-500 mb-2">
@@ -265,7 +273,7 @@ export default function CreateFlow({
           </div>
         </section>
       )}
-    </>
+    </div>
   );
 }
 

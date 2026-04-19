@@ -63,8 +63,15 @@ export default function AuditFlow({
     return <AuditResultView result={result} onRestart={restart} />;
   }
 
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && canSubmit) {
+      e.preventDefault();
+      submit();
+    }
+  };
+
   return (
-    <section>
+    <section onKeyDown={onKeyDown}>
       <h2 className="text-xl font-semibold mb-2">
         Audite un projet Claude Code en difficulté
       </h2>

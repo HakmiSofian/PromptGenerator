@@ -10,6 +10,7 @@ import HistoryDrawer from "@/components/HistoryDrawer";
 import ByokSettings from "@/components/ByokSettings";
 import OnboardingTour from "@/components/OnboardingTour";
 import ThemeToggle from "@/components/ThemeToggle";
+import ShortcutsHelp from "@/components/ShortcutsHelp";
 import { readSharedFromHash, clearShareHash } from "@/lib/client/shareLink";
 import type { ProvidersStatus } from "@/lib/llm/orchestrator";
 import type {
@@ -50,6 +51,27 @@ export default function HomeClient({
     setMode(shared.mode);
     setRestored(fakeEntry);
     clearShareHash();
+  }, []);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey)) return;
+      if (e.key === "1") {
+        e.preventDefault();
+        setMode("create");
+        setRestored(null);
+      } else if (e.key === "2") {
+        e.preventDefault();
+        setMode("improve");
+        setRestored(null);
+      } else if (e.key === "3") {
+        e.preventDefault();
+        setMode("audit");
+        setRestored(null);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   }, []);
 
   const registerSave: Parameters<typeof HistoryDrawer>[0]["registerSave"] = (
@@ -168,6 +190,8 @@ export default function HomeClient({
           />
         )}
       </main>
+
+      <ShortcutsHelp />
 
       <footer className="text-center text-xs text-slate-400 mt-8 no-print">
         Open source · 100 % en français · orchestration multi-IA spécialisée
