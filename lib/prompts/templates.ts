@@ -1,11 +1,15 @@
 import type {
   CreateRequest,
   ImproveRequest,
+  AuditRequest,
   CreateResult,
   ImproveResult,
+  AuditResult,
   ModelRecommendation,
   Followup,
   Issue,
+  Diagnosis,
+  ActionItem,
 } from "@/lib/types";
 
 const taskTypeLabel: Record<CreateRequest["taskType"], string> = {
@@ -473,5 +477,222 @@ export function buildImproveResultFromTemplates(
     source: "template",
     issues,
     improvedPrompt: rewritePrompt(req.prompt, issues),
+  };
+}
+
+export function buildAuditResultFromTemplates(req: AuditRequest): AuditResult {
+  const claudeMd = req.currentClaudeMd?.trim() ?? "";
+  const prompts = req.recentPrompts?.trim() ?? "";
+  const responses = req.recentResponses?.trim() ?? "";
+  const wrong = req.whatsWrong.trim();
+
+  const diagnosis: Diagnosis[] = [];
+
+  if (!claudeMd) {
+    diagnosis.push({
+      category: "claude-md",
+      severity: "critical",
+      label: "Pas de CLAUDE.md",
+      detail:
+        "Sans CLAUDE.md, Claude Code repart à zéro à chaque session. C'est la cause n°1 des dérives.",
+    });
+  } else {
+    if (claudeMd.length > 4000) {
+      diagnosis.push({
+        category: "claude-md",
+        severity: "warning",
+        label: "CLAUDE.md trop long",
+        detail:
+          "Au-delà de 3-4 Ko, Claude lit moins attentivement. Synthétise.",
+      });
+    }
+    if (!/français|french/i.test(claudeMd)) {
+      diagnosis.push({
+        category: "claude-md",
+        severity: "info",
+        label: "Pas de consigne de langue",
+        detail: "Précise « réponds en français » pour éviter les réponses en anglais.",
+      });
+    }
+    if (!/plan|planifie|propose/i.test(claudeMd)) {
+      diagnosis.push({
+        category: "claude-md",
+        severity: "warning",
+        label: "Pas de garde-fou « plan avant action »",
+        detail:
+          "Sans cette règle, Claude code direct et casse plus souvent. Demande-lui de proposer un plan court avant toute modif.",
+      });
+    }
+  }
+
+  if (prompts) {
+    const conjunctions = (prompts.toLowerCase().match(/\b(et|puis|ensuite)\b/g) || []).length;
+    if (conjunctions >= 4) {
+      diagnosis.push({
+        category: "prompts",
+        severity: "warning",
+        label: "Prompts trop chargés",
+        detail:
+          "Plusieurs tâches sont enchaînées dans un même prompt. Découpe en demandes successives, valide à chaque étape.",
+      });
+    }
+    if (prompts.length < 80) {
+      diagnosis.push({
+        category: "prompts",
+        severity: "warning",
+        label: "Prompts trop courts",
+        detail:
+          "Tes prompts manquent de contexte. Indique sur quel fichier/composant tu travailles et quel résultat tu attends.",
+      });
+    }
+  }
+
+  if (responses && responses.length > 6000) {
+    diagnosis.push({
+      category: "memory",
+      severity: "warning",
+      label: "Conversation très longue",
+      detail:
+        "La fenêtre de contexte se sature. Lance /compact pour résumer la session sans perdre les décisions.",
+    });
+  }
+
+  if (/lent|slow|cher|expensive|trop long/i.test(wrong)) {
+    diagnosis.push({
+      category: "model",
+      severity: "info",
+      label: "Modèle peut-être surdimensionné",
+      detail:
+        "Si la tâche est simple, bascule sur Haiku ou Sonnet pour économiser temps et coût.",
+    });
+  }
+
+  if (/perdu|confus|n'écoute pas|ignore|ne respecte/i.test(wrong)) {
+    diagnosis.push({
+      category: "memory",
+      severity: "critical",
+      label: "Claude perd le fil",
+      detail:
+        "Probablement saturation de contexte ou contradictions dans CLAUDE.md. Reset propre + nouveau CLAUDE.md = remède.",
+    });
+  }
+
+  if (diagnosis.length === 0) {
+    diagnosis.push({
+      category: "other",
+      severity: "info",
+      label: "Pas de défaut majeur visible",
+      detail:
+        "Sur la base des éléments fournis, ton setup paraît sain. Si le problème persiste, partage la réponse exacte qui t'a posé souci.",
+    });
+  }
+
+  const criticalCount = diagnosis.filter((d) => d.severity === "critical").length;
+  const warnCount = diagnosis.filter((d) => d.severity === "warning").length;
+  const healthScore = Math.max(
+    10,
+    100 - criticalCount * 30 - warnCount * 12 - (diagnosis.length - criticalCount - warnCount) * 3
+  );
+
+  const newClaudeMd = `# Contexte du projet
+
+${req.stackHint?.trim() ? `**Stack** : ${req.stackHint.trim()}\n\n` : ""}**Ce qui pose problème actuellement** : ${wrong}
+
+# Règles de travail (révisées)
+
+- Avant toute modification non triviale, propose un plan court (3-5 bullets) et attends ma validation.
+- Pose des questions si une information clé manque, ne devine pas.
+- Modifie un fichier à la fois et annonce ce que tu touches avant.
+- N'ajoute jamais de fonctionnalité non demandée.
+- Si tu détectes une contradiction avec une consigne précédente, signale-la avant d'agir.
+
+# Communication
+
+- Réponds en français.
+- Vulgarise les termes techniques quand tu les introduis.
+- Si tu bloques, dis-le clairement plutôt que d'inventer.
+
+# Garde-fous spécifiques
+
+- Si la conversation devient longue, propose toi-même un /compact avec un récap.
+- Si je te demande plusieurs choses dans un même message, demande-moi de prioriser.
+`;
+
+  const recoveryPrompt = `## Reprise de session
+
+La session précédente a dérapé. Voici ce qu'on fait :
+
+1. Lis le fichier \`CLAUDE.md\` à la racine (qui vient d'être réécrit).
+2. Résume-moi en 3 lignes ce que tu en as compris et ce qui change par rapport à avant.
+3. Attends ma validation avant de toucher au moindre fichier.
+4. Quand je valide, propose un plan en 3-5 étapes pour reprendre proprement le travail là où on s'est arrêté, en tenant compte de ce qui a foiré : ${wrong}
+
+Ne code rien tant que je n'ai pas validé ton plan.`;
+
+  const actionItems: ActionItem[] = [];
+
+  if (claudeMd) {
+    actionItems.push({
+      label: "Remplace ton CLAUDE.md",
+      detail: "Colle la nouvelle version (ci-dessous) à la racine du projet.",
+    });
+  } else {
+    actionItems.push({
+      label: "Crée un CLAUDE.md à la racine",
+      detail: "Colle la version proposée ci-dessous dans un fichier nommé CLAUDE.md.",
+    });
+  }
+
+  actionItems.push({
+    label: "Vide la conversation actuelle",
+    detail:
+      "Repart d'une session propre — la précédente est polluée par les mauvaises directions.",
+    command: "/clear",
+  });
+
+  if (responses && responses.length > 6000) {
+    actionItems.push({
+      label: "Sauvegarde un récap avant de partir",
+      detail:
+        "Avant /clear, demande à Claude un récap des décisions importantes pour le coller au prochain démarrage.",
+      command: "/compact",
+    });
+  }
+
+  actionItems.push({
+    label: "Bascule sur le bon modèle",
+    detail:
+      "Sonnet pour la plupart des tâches ; Opus pour planifier ; Haiku pour des questions rapides.",
+    command: "/model sonnet",
+  });
+
+  actionItems.push({
+    label: "Active le mode plan",
+    detail:
+      "Force Claude à proposer son raisonnement avant d'agir.",
+    command: "/plan",
+  });
+
+  actionItems.push({
+    label: "Envoie le prompt de reprise",
+    detail: "Colle le « Prompt de remise sur les rails » et attends que Claude résume avant de valider.",
+  });
+
+  return {
+    mode: "audit",
+    source: "template",
+    healthScore,
+    summary:
+      criticalCount > 0
+        ? "Le projet est en difficulté, mais récupérable avec une remise à plat."
+        : warnCount > 0
+          ? "Quelques corrections importantes à faire pour repartir sur de bonnes bases."
+          : "Setup globalement sain, ajustements mineurs.",
+    rootCause:
+      diagnosis[0]?.detail ?? "Cause non identifiable depuis les éléments fournis.",
+    diagnosis,
+    newClaudeMd,
+    recoveryPrompt,
+    actionItems,
   };
 }

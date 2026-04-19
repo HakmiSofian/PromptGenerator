@@ -6,7 +6,7 @@ import type { GenerateResult } from "@/lib/types";
 export type HistoryEntry = {
   id: string;
   createdAt: number;
-  mode: "create" | "improve";
+  mode: "create" | "improve" | "audit";
   title: string;
   request: unknown;
   result: GenerateResult;
@@ -79,12 +79,13 @@ export function useKitHistory() {
 }
 
 export function titleFromRequest(
-  mode: "create" | "improve",
+  mode: "create" | "improve" | "audit",
   request: unknown
 ): string {
   if (!request || typeof request !== "object") return "Kit sans titre";
   const r = request as Record<string, unknown>;
-  const raw = mode === "create" ? r.goal : r.prompt;
+  const raw =
+    mode === "create" ? r.goal : mode === "improve" ? r.prompt : r.whatsWrong;
   if (typeof raw !== "string") return "Kit sans titre";
   const trimmed = raw.trim().replace(/\s+/g, " ");
   return trimmed.length > 60 ? trimmed.slice(0, 60) + "…" : trimmed;

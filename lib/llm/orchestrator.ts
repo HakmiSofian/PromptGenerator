@@ -1,15 +1,18 @@
 import {
   buildCreateResultFromTemplates,
   buildImproveResultFromTemplates,
+  buildAuditResultFromTemplates,
   recommendModel,
 } from "@/lib/prompts/templates";
 import type {
   CreateRequest,
   ImproveRequest,
+  AuditRequest,
   GenerateResult,
   ModelRecommendation,
   CreateResult,
   ImproveResult,
+  AuditResult,
   UserApiKeys,
 } from "@/lib/types";
 import { isAnthropicConfigured } from "@/lib/llm/providers/anthropic";
@@ -25,6 +28,8 @@ import {
   runCriticCreate,
   runAnalystImprove,
   runWriterImprove,
+  runAuditor,
+  runDoctor,
   type AnalystCreateOutput,
 } from "@/lib/llm/chain";
 
@@ -40,18 +45,18 @@ export function anyProviderConfigured(userKeys?: UserApiKeys): boolean {
   return assignmentAny(userKeys);
 }
 
+export type RoleKey =
+  | "analyst"
+  | "writer"
+  | "critic"
+  | "auditor"
+  | "doctor";
+
 export type StreamEvent =
   | { type: "status"; message: string }
   | { type: "cache-hit"; message: string }
-  | {
-      type: "role-start";
-      role: "analyst" | "writer" | "critic";
-      label: string;
-    }
-  | {
-      type: "role-complete";
-      role: "analyst" | "writer" | "critic";
-    }
+  | { type: "role-start"; role: RoleKey; label: string }
+  | { type: "role-complete"; role: RoleKey }
   | { type: "warning"; message: string }
   | { type: "result"; result: GenerateResult }
   | { type: "error"; message: string };
@@ -59,7 +64,7 @@ export type StreamEvent =
 export type Emit = (event: StreamEvent) => void;
 
 export async function streamGenerate(
-  req: CreateRequest | ImproveRequest,
+  req: CreateRequest | ImproveRequest | AuditRequest,
   emit: Emit
 ): Promise<void> {
   const userKeys = req.userKeys;
@@ -94,15 +99,16 @@ export async function streamGenerate(
   }
 
   try {
+    let result: GenerateResult;
     if (req.mode === "create") {
-      const result = await runCreateChain(req, emit);
-      await setCached(cacheKey, result);
-      emit({ type: "result", result });
+      result = await runCreateChain(req, emit);
+    } else if (req.mode === "improve") {
+      result = await runImproveChain(req, emit);
     } else {
-      const result = await runImproveChain(req, emit);
-      await setCached(cacheKey, result);
-      emit({ type: "result", result });
+      result = await runAuditChain(req, emit);
     }
+    await setCached(cacheKey, result);
+    emit({ type: "result", result });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Erreur inconnue";
     emit({
@@ -202,6 +208,49 @@ function sumCost(
   };
 }
 
+async function runAuditChain(
+  req: AuditRequest,
+  emit: Emit
+): Promise<AuditResult> {
+  emit({
+    type: "role-start",
+    role: "auditor",
+    label: "🩺 L'auditeur examine ton projet…",
+  });
+  const auditor = await runAuditor(req);
+  emit({ type: "role-complete", role: "auditor" });
+
+  emit({
+    type: "role-start",
+    role: "doctor",
+    label: "💊 Le docteur prescrit le traitement…",
+  });
+  const doctor = await runDoctor(req, auditor.output);
+  emit({ type: "role-complete", role: "doctor" });
+
+  return {
+    mode: "audit",
+    source: "llm",
+    healthScore: clamp01to100(auditor.output.healthScore),
+    summary: auditor.output.summary,
+    rootCause: auditor.output.rootCause,
+    diagnosis: auditor.output.diagnosis ?? [],
+    newClaudeMd: doctor.output.newClaudeMd,
+    recoveryPrompt: doctor.output.recoveryPrompt,
+    actionItems: doctor.output.actionItems ?? [],
+    providersUsed: {
+      auditor: auditor.provider,
+      doctor: doctor.provider,
+    },
+    cost: sumCost([auditor.usage, doctor.usage]),
+  };
+}
+
+function clamp01to100(n: number): number {
+  if (typeof n !== "number" || Number.isNaN(n)) return 50;
+  return Math.max(0, Math.min(100, Math.round(n)));
+}
+
 function modelFromAnalyst(
   specs: AnalystCreateOutput,
   req: CreateRequest
@@ -223,16 +272,21 @@ function modelFromAnalyst(
   };
 }
 
-function fallback(req: CreateRequest | ImproveRequest): GenerateResult {
+function fallback(
+  req: CreateRequest | ImproveRequest | AuditRequest
+): GenerateResult {
   if (req.mode === "create") return buildCreateResultFromTemplates(req);
-  return buildImproveResultFromTemplates(req);
+  if (req.mode === "improve") return buildImproveResultFromTemplates(req);
+  return buildAuditResultFromTemplates(req);
 }
 
 /**
  * Strip userKeys before hashing for cache so different users with different
  * keys share the same cached kit for the same semantic request.
  */
-function semanticRequest(req: CreateRequest | ImproveRequest): unknown {
+function semanticRequest(
+  req: CreateRequest | ImproveRequest | AuditRequest
+): unknown {
   const clone: Record<string, unknown> = { ...(req as Record<string, unknown>) };
   delete clone.userKeys;
   return clone;

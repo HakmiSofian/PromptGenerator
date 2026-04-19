@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import ModeTabs from "@/components/ModeTabs";
 import CreateFlow from "@/components/CreateFlow";
 import ImproveFlow from "@/components/ImproveFlow";
+import AuditFlow from "@/components/AuditFlow";
 import ProvidersBadge from "@/components/ProvidersBadge";
 import HistoryDrawer from "@/components/HistoryDrawer";
 import ByokSettings from "@/components/ByokSettings";
@@ -11,12 +12,13 @@ import type { ProvidersStatus } from "@/lib/llm/orchestrator";
 import type {
   CreateResult,
   ImproveResult,
+  AuditResult,
   GenerateResult,
   UserApiKeys,
 } from "@/lib/types";
 import type { HistoryEntry } from "@/lib/client/useKitHistory";
 
-type Mode = "create" | "improve";
+type Mode = "create" | "improve" | "audit";
 
 export default function HomeClient({
   providersStatus,
@@ -100,7 +102,7 @@ export default function HomeClient({
       <ModeTabs mode={mode} onChange={onTabChange} />
 
       <main className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 md:p-8">
-        {mode === "create" ? (
+        {mode === "create" && (
           <CreateFlow
             key={restored?.mode === "create" ? restored.id : "fresh-create"}
             userKeys={userKeys}
@@ -113,7 +115,8 @@ export default function HomeClient({
               handleGenerated("create", req, res, title)
             }
           />
-        ) : (
+        )}
+        {mode === "improve" && (
           <ImproveFlow
             key={restored?.mode === "improve" ? restored.id : "fresh-improve"}
             userKeys={userKeys}
@@ -124,6 +127,20 @@ export default function HomeClient({
             }
             onGenerated={(req, res, title) =>
               handleGenerated("improve", req, res, title)
+            }
+          />
+        )}
+        {mode === "audit" && (
+          <AuditFlow
+            key={restored?.mode === "audit" ? restored.id : "fresh-audit"}
+            userKeys={userKeys}
+            initialResult={
+              restored?.mode === "audit"
+                ? (restored.result as AuditResult)
+                : null
+            }
+            onGenerated={(req, res, title) =>
+              handleGenerated("audit", req, res, title)
             }
           />
         )}

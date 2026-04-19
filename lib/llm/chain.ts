@@ -13,11 +13,16 @@ import {
   IMPROVE_WRITER_SYSTEM_PROMPT,
 } from "@/lib/prompts/writer";
 import { CRITIC_SYSTEM_PROMPT } from "@/lib/prompts/critic";
+import { AUDITOR_SYSTEM_PROMPT } from "@/lib/prompts/auditor";
+import { DOCTOR_SYSTEM_PROMPT } from "@/lib/prompts/doctor";
 import type {
   CreateRequest,
   ImproveRequest,
+  AuditRequest,
   Followup,
   Issue,
+  Diagnosis,
+  ActionItem,
   ModelRecommendation,
   UserApiKeys,
 } from "@/lib/types";
@@ -53,6 +58,19 @@ export type AnalystImproveOutput = {
 };
 
 export type WriterImproveOutput = { improvedPrompt: string };
+
+export type AuditorOutput = {
+  healthScore: number;
+  summary: string;
+  rootCause: string;
+  diagnosis: Diagnosis[];
+};
+
+export type DoctorOutput = {
+  newClaudeMd: string;
+  recoveryPrompt: string;
+  actionItems: ActionItem[];
+};
 
 export type RoleUsage = {
   inputTokens: number;
@@ -231,6 +249,45 @@ export async function runWriterImprove(
     IMPROVE_WRITER_SYSTEM_PROMPT,
     userMessage,
     2048,
+    req.userKeys
+  );
+}
+
+export async function runAuditor(req: AuditRequest) {
+  const userMessage = JSON.stringify(
+    {
+      currentClaudeMd: req.currentClaudeMd ?? "",
+      recentPrompts: req.recentPrompts ?? "",
+      recentResponses: req.recentResponses ?? "",
+      whatsWrong: req.whatsWrong,
+      stackHint: req.stackHint ?? "",
+    },
+    null,
+    2
+  );
+  return runRole<AuditorOutput>(
+    "critic",
+    AUDITOR_SYSTEM_PROMPT,
+    userMessage,
+    2048,
+    req.userKeys
+  );
+}
+
+export async function runDoctor(req: AuditRequest, audit: AuditorOutput) {
+  const userMessage = JSON.stringify(
+    {
+      originalInputs: stripKeys(req),
+      auditorDiagnosis: audit,
+    },
+    null,
+    2
+  );
+  return runRole<DoctorOutput>(
+    "writer",
+    DOCTOR_SYSTEM_PROMPT,
+    userMessage,
+    4096,
     req.userKeys
   );
 }

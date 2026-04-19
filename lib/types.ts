@@ -39,9 +39,21 @@ export const ImproveRequest = z.object({
 });
 export type ImproveRequest = z.infer<typeof ImproveRequest>;
 
+export const AuditRequest = z.object({
+  mode: z.literal("audit"),
+  currentClaudeMd: z.string().optional().default(""),
+  recentPrompts: z.string().optional().default(""),
+  recentResponses: z.string().optional().default(""),
+  whatsWrong: z.string().min(5),
+  stackHint: z.string().optional().default(""),
+  userKeys: UserApiKeys.optional(),
+});
+export type AuditRequest = z.infer<typeof AuditRequest>;
+
 export const GenerateRequest = z.discriminatedUnion("mode", [
   CreateRequest,
   ImproveRequest,
+  AuditRequest,
 ]);
 export type GenerateRequest = z.infer<typeof GenerateRequest>;
 
@@ -96,4 +108,37 @@ export type ImproveResult = {
   cost?: CostBreakdown;
 };
 
-export type GenerateResult = CreateResult | ImproveResult;
+export type Diagnosis = {
+  category:
+    | "claude-md"
+    | "prompts"
+    | "memory"
+    | "model"
+    | "scope"
+    | "other";
+  severity: "critical" | "warning" | "info";
+  label: string;
+  detail: string;
+};
+
+export type ActionItem = {
+  label: string;
+  detail: string;
+  command?: string;
+};
+
+export type AuditResult = {
+  mode: "audit";
+  source: "llm" | "template";
+  healthScore: number;
+  summary: string;
+  rootCause: string;
+  diagnosis: Diagnosis[];
+  newClaudeMd: string;
+  recoveryPrompt: string;
+  actionItems: ActionItem[];
+  providersUsed?: { auditor?: ProviderName; doctor?: ProviderName };
+  cost?: CostBreakdown;
+};
+
+export type GenerateResult = CreateResult | ImproveResult | AuditResult;

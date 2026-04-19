@@ -3,18 +3,18 @@
 import { useCallback, useRef, useState } from "react";
 import type { GenerateResult } from "@/lib/types";
 
+export type RoleKey =
+  | "analyst"
+  | "writer"
+  | "critic"
+  | "auditor"
+  | "doctor";
+
 export type ClientStreamEvent =
   | { type: "status"; message: string }
   | { type: "cache-hit"; message: string }
-  | {
-      type: "role-start";
-      role: "analyst" | "writer" | "critic";
-      label: string;
-    }
-  | {
-      type: "role-complete";
-      role: "analyst" | "writer" | "critic";
-    }
+  | { type: "role-start"; role: RoleKey; label: string }
+  | { type: "role-complete"; role: RoleKey }
   | { type: "warning"; message: string }
   | { type: "result"; result: GenerateResult }
   | { type: "error"; message: string };
@@ -25,13 +25,9 @@ export type Progress = {
   active: boolean;
   statusMessage: string | null;
   warning: string | null;
-  currentRole: "analyst" | "writer" | "critic" | null;
+  currentRole: RoleKey | null;
   currentLabel: string | null;
-  roles: {
-    analyst: RoleStatus;
-    writer: RoleStatus;
-    critic: RoleStatus;
-  };
+  roles: Record<RoleKey, RoleStatus>;
 };
 
 const initialProgress: Progress = {
@@ -40,7 +36,13 @@ const initialProgress: Progress = {
   warning: null,
   currentRole: null,
   currentLabel: null,
-  roles: { analyst: "pending", writer: "pending", critic: "pending" },
+  roles: {
+    analyst: "pending",
+    writer: "pending",
+    critic: "pending",
+    auditor: "pending",
+    doctor: "pending",
+  },
 };
 
 export function useGenerateStream() {

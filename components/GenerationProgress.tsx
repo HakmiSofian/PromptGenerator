@@ -1,16 +1,50 @@
 "use client";
 
-import type { Progress, RoleStatus } from "@/lib/client/useGenerateStream";
-
-type RoleKey = "analyst" | "writer" | "critic";
+import type {
+  Progress,
+  RoleStatus,
+  RoleKey,
+} from "@/lib/client/useGenerateStream";
 
 const ROLE_META: Record<
   RoleKey,
-  { emoji: string; createLabel: string; improveLabel: string }
+  {
+    emoji: string;
+    createLabel: string;
+    improveLabel: string;
+    auditLabel: string;
+  }
 > = {
-  analyst: { emoji: "🔍", createLabel: "Analyse du besoin", improveLabel: "Diagnostic du prompt" },
-  writer: { emoji: "✍️", createLabel: "Rédaction du kit", improveLabel: "Réécriture du prompt" },
-  critic: { emoji: "🔎", createLabel: "Relecture & correction", improveLabel: "" },
+  analyst: {
+    emoji: "🔍",
+    createLabel: "Analyse du besoin",
+    improveLabel: "Diagnostic du prompt",
+    auditLabel: "",
+  },
+  writer: {
+    emoji: "✍️",
+    createLabel: "Rédaction du kit",
+    improveLabel: "Réécriture du prompt",
+    auditLabel: "",
+  },
+  critic: {
+    emoji: "🔎",
+    createLabel: "Relecture & correction",
+    improveLabel: "",
+    auditLabel: "",
+  },
+  auditor: {
+    emoji: "🩺",
+    createLabel: "",
+    improveLabel: "",
+    auditLabel: "Audit du projet",
+  },
+  doctor: {
+    emoji: "💊",
+    createLabel: "",
+    improveLabel: "",
+    auditLabel: "Prescription du traitement",
+  },
 };
 
 export default function GenerationProgress({
@@ -18,14 +52,18 @@ export default function GenerationProgress({
   mode,
 }: {
   progress: Progress;
-  mode: "create" | "improve";
+  mode: "create" | "improve" | "audit";
 }) {
   if (!progress.active && !progress.warning && !progress.statusMessage) {
     return null;
   }
 
   const visibleRoles: RoleKey[] =
-    mode === "create" ? ["analyst", "writer", "critic"] : ["analyst", "writer"];
+    mode === "create"
+      ? ["analyst", "writer", "critic"]
+      : mode === "improve"
+        ? ["analyst", "writer"]
+        : ["auditor", "doctor"];
 
   return (
     <div className="my-6 p-4 rounded-lg border border-indigo-200 bg-indigo-50">
@@ -37,7 +75,12 @@ export default function GenerationProgress({
         {visibleRoles.map((role) => {
           const status = progress.roles[role];
           const meta = ROLE_META[role];
-          const label = mode === "create" ? meta.createLabel : meta.improveLabel;
+          const label =
+            mode === "create"
+              ? meta.createLabel
+              : mode === "improve"
+                ? meta.improveLabel
+                : meta.auditLabel;
           return (
             <li key={role} className="flex items-center gap-3 text-sm">
               <StatusDot status={status} />
