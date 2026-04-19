@@ -1,19 +1,38 @@
-import { getProvidersStatus } from "@/lib/llm/orchestrator";
+import { isAnthropicConfigured } from "@/lib/llm/providers/anthropic";
+import { isOpenAIConfigured } from "@/lib/llm/providers/openai";
+import { isGoogleConfigured } from "@/lib/llm/providers/google";
+import type { UserApiKeys } from "@/lib/types";
 
 export type Provider = "anthropic" | "openai" | "google";
 export type Role = "analyst" | "writer" | "critic";
 
+export type ProvidersStatus = {
+  anthropic: boolean;
+  openai: boolean;
+  google: boolean;
+};
+
+export function getProvidersStatus(userKeys?: UserApiKeys): ProvidersStatus {
+  return {
+    anthropic: isAnthropicConfigured(userKeys?.anthropic),
+    openai: isOpenAIConfigured(userKeys?.openai),
+    google: isGoogleConfigured(userKeys?.google),
+  };
+}
+
+export function anyProviderConfigured(userKeys?: UserApiKeys): boolean {
+  const s = getProvidersStatus(userKeys);
+  return s.anthropic || s.openai || s.google;
+}
+
 /**
  * Picks the best provider for each role based on available keys.
- *
- * Rationale:
- *  - Analyst: cheapest first (Haiku > Gemini Flash > GPT mini).
- *  - Writer: Claude Sonnet is strongest on structured French output.
- *  - Critic: pick a DIFFERENT family from the writer so the critique
- *    isn't self-review. Falls back to the same family if no other is set.
+ *  - Analyst: cheapest first.
+ *  - Writer: Claude Sonnet by default (strong on structured French).
+ *  - Critic: a DIFFERENT family than the writer for independent review.
  */
-export function pickProvider(role: Role): Provider {
-  const s = getProvidersStatus();
+export function pickProvider(role: Role, userKeys?: UserApiKeys): Provider {
+  const s = getProvidersStatus(userKeys);
 
   if (role === "analyst") {
     if (s.anthropic) return "anthropic";
@@ -28,27 +47,16 @@ export function pickProvider(role: Role): Provider {
   }
 
   if (role === "critic") {
-    // Prefer a different family than the writer for independence.
-    const writer = pickProvider("writer");
+    const writer = pickProvider("writer", userKeys);
     if (writer !== "openai" && s.openai) return "openai";
     if (writer !== "google" && s.google) return "google";
     if (writer !== "anthropic" && s.anthropic) return "anthropic";
-    // Only one family available: fall back to the strongest of it.
     if (s.anthropic) return "anthropic";
     if (s.openai) return "openai";
     if (s.google) return "google";
   }
 
   return "anthropic";
-}
-
-export function committeeIsDiverse(): boolean {
-  const used = new Set([
-    pickProvider("analyst"),
-    pickProvider("writer"),
-    pickProvider("critic"),
-  ]);
-  return used.size > 1;
 }
 
 export const PROVIDER_LABEL: Record<Provider, string> = {

@@ -7,18 +7,24 @@ const MODEL_BY_ROLE: Record<Role, string> = {
   critic: "gemini-2.5-pro",
 };
 
-export function isGoogleConfigured(): boolean {
-  return Boolean(process.env.GOOGLE_API_KEY);
+export function resolveGoogleKey(userKey?: string): string | null {
+  return userKey?.trim() || process.env.GOOGLE_API_KEY || null;
+}
+
+export function isGoogleConfigured(userKey?: string): boolean {
+  return Boolean(resolveGoogleKey(userKey));
 }
 
 export async function callGoogle(params: {
   role: Role;
   systemPrompt: string;
   userMessage: string;
+  apiKey?: string;
 }): Promise<string | null> {
-  if (!isGoogleConfigured()) return null;
+  const apiKey = resolveGoogleKey(params.apiKey);
+  if (!apiKey) return null;
 
-  const client = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY as string);
+  const client = new GoogleGenerativeAI(apiKey);
   const model = client.getGenerativeModel({
     model: MODEL_BY_ROLE[params.role],
     systemInstruction: params.systemPrompt,

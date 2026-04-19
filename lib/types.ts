@@ -13,6 +13,13 @@ export type TaskType = z.infer<typeof TaskType>;
 export const Size = z.enum(["small", "medium", "large"]);
 export type Size = z.infer<typeof Size>;
 
+export const UserApiKeys = z.object({
+  anthropic: z.string().optional(),
+  openai: z.string().optional(),
+  google: z.string().optional(),
+});
+export type UserApiKeys = z.infer<typeof UserApiKeys>;
+
 export const CreateRequest = z.object({
   mode: z.literal("create"),
   goal: z.string().min(5),
@@ -20,6 +27,7 @@ export const CreateRequest = z.object({
   size: Size,
   context: z.string().optional().default(""),
   coach: z.boolean().optional().default(true),
+  userKeys: UserApiKeys.optional(),
 });
 export type CreateRequest = z.infer<typeof CreateRequest>;
 
@@ -27,6 +35,7 @@ export const ImproveRequest = z.object({
   mode: z.literal("improve"),
   prompt: z.string().min(5),
   response: z.string().optional().default(""),
+  userKeys: UserApiKeys.optional(),
 });
 export type ImproveRequest = z.infer<typeof ImproveRequest>;
 

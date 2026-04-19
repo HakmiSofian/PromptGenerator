@@ -18,6 +18,7 @@ import type {
   Followup,
   Issue,
   ModelRecommendation,
+  UserApiKeys,
 } from "@/lib/types";
 
 export type AnalystCreateOutput = {
@@ -52,32 +53,36 @@ export type AnalystImproveOutput = {
 
 export type WriterImproveOutput = { improvedPrompt: string };
 
-/**
- * Generic dispatcher: call the right provider for a given role.
- * Falls back to Anthropic if the chosen provider returns null (e.g. key
- * disappeared at runtime).
- */
 async function callLlm(params: {
   role: Role;
   provider: Provider;
   systemPrompt: string;
   userMessage: string;
   maxTokens?: number;
+  userKeys?: UserApiKeys;
 }): Promise<string | null> {
-  const common = {
-    role: params.role,
-    systemPrompt: params.systemPrompt,
-    userMessage: params.userMessage,
-    maxTokens: params.maxTokens,
-  };
-
-  if (params.provider === "anthropic") return callAnthropic(common);
-  if (params.provider === "openai") return callOpenAI(common);
+  if (params.provider === "anthropic")
+    return callAnthropic({
+      role: params.role,
+      systemPrompt: params.systemPrompt,
+      userMessage: params.userMessage,
+      maxTokens: params.maxTokens,
+      apiKey: params.userKeys?.anthropic,
+    });
+  if (params.provider === "openai")
+    return callOpenAI({
+      role: params.role,
+      systemPrompt: params.systemPrompt,
+      userMessage: params.userMessage,
+      maxTokens: params.maxTokens,
+      apiKey: params.userKeys?.openai,
+    });
   if (params.provider === "google")
     return callGoogle({
       role: params.role,
       systemPrompt: params.systemPrompt,
       userMessage: params.userMessage,
+      apiKey: params.userKeys?.google,
     });
   return null;
 }
@@ -86,18 +91,25 @@ async function runRole<T>(
   role: Role,
   systemPrompt: string,
   userMessage: string,
-  maxTokens: number
+  maxTokens: number,
+  userKeys?: UserApiKeys
 ): Promise<{ output: T; provider: Provider }> {
-  const provider = pickProvider(role);
+  const provider = pickProvider(role, userKeys);
   const raw = await callLlm({
     role,
     provider,
     systemPrompt,
     userMessage,
     maxTokens,
+    userKeys,
   });
   if (!raw) throw new Error(`${role} (${provider}) : aucune réponse`);
   return { output: extractJson<T>(raw), provider };
+}
+
+function stripKeys<T extends { userKeys?: unknown }>(req: T): Omit<T, "userKeys"> {
+  const { userKeys: _removed, ...rest } = req;
+  return rest;
 }
 
 export async function runAnalystCreate(req: CreateRequest) {
@@ -115,7 +127,8 @@ export async function runAnalystCreate(req: CreateRequest) {
     "analyst",
     ANALYST_SYSTEM_PROMPT,
     userMessage,
-    1200
+    1200,
+    req.userKeys
   );
 }
 
@@ -124,7 +137,7 @@ export async function runWriterCreate(
   specs: AnalystCreateOutput
 ) {
   const userMessage = JSON.stringify(
-    { originalRequest: req, specsFromAnalyst: specs },
+    { originalRequest: stripKeys(req), specsFromAnalyst: specs },
     null,
     2
   );
@@ -132,7 +145,8 @@ export async function runWriterCreate(
     "writer",
     WRITER_SYSTEM_PROMPT,
     userMessage,
-    4096
+    4096,
+    req.userKeys
   );
 }
 
@@ -142,7 +156,11 @@ export async function runCriticCreate(
   draft: WriterCreateOutput
 ) {
   const userMessage = JSON.stringify(
-    { originalRequest: req, specsFromAnalyst: specs, draftFromWriter: draft },
+    {
+      originalRequest: stripKeys(req),
+      specsFromAnalyst: specs,
+      draftFromWriter: draft,
+    },
     null,
     2
   );
@@ -150,7 +168,8 @@ export async function runCriticCreate(
     "critic",
     CRITIC_SYSTEM_PROMPT,
     userMessage,
-    4096
+    4096,
+    req.userKeys
   );
 }
 
@@ -164,7 +183,8 @@ export async function runAnalystImprove(req: ImproveRequest) {
     "analyst",
     IMPROVE_ANALYST_SYSTEM_PROMPT,
     userMessage,
-    1500
+    1500,
+    req.userKeys
   );
 }
 
@@ -181,6 +201,7 @@ export async function runWriterImprove(
     "writer",
     IMPROVE_WRITER_SYSTEM_PROMPT,
     userMessage,
-    2048
+    2048,
+    req.userKeys
   );
 }

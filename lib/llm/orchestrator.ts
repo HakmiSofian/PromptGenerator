@@ -10,10 +10,14 @@ import type {
   ModelRecommendation,
   CreateResult,
   ImproveResult,
+  UserApiKeys,
 } from "@/lib/types";
 import { isAnthropicConfigured } from "@/lib/llm/providers/anthropic";
-import { isOpenAIConfigured } from "@/lib/llm/providers/openai";
-import { isGoogleConfigured } from "@/lib/llm/providers/google";
+import {
+  getProvidersStatus as assignmentStatus,
+  anyProviderConfigured as assignmentAny,
+  type ProvidersStatus,
+} from "@/lib/llm/assignment";
 import { getCached, isCacheConfigured, setCached } from "@/lib/llm/cache";
 import {
   runAnalystCreate,
@@ -24,24 +28,16 @@ import {
   type AnalystCreateOutput,
 } from "@/lib/llm/chain";
 
-export function anyProviderConfigured(): boolean {
-  return (
-    isAnthropicConfigured() || isOpenAIConfigured() || isGoogleConfigured()
-  );
+export type { ProvidersStatus } from "@/lib/llm/assignment";
+
+export function getProvidersStatus(
+  userKeys?: UserApiKeys
+): ProvidersStatus {
+  return assignmentStatus(userKeys);
 }
 
-export type ProvidersStatus = {
-  anthropic: boolean;
-  openai: boolean;
-  google: boolean;
-};
-
-export function getProvidersStatus(): ProvidersStatus {
-  return {
-    anthropic: isAnthropicConfigured(),
-    openai: isOpenAIConfigured(),
-    google: isGoogleConfigured(),
-  };
+export function anyProviderConfigured(userKeys?: UserApiKeys): boolean {
+  return assignmentAny(userKeys);
 }
 
 export type StreamEvent =
@@ -66,7 +62,9 @@ export async function streamGenerate(
   req: CreateRequest | ImproveRequest,
   emit: Emit
 ): Promise<void> {
-  if (!isAnthropicConfigured()) {
+  const userKeys = req.userKeys;
+
+  if (!isAnthropicConfigured(userKeys?.anthropic)) {
     emit({
       type: "status",
       message:
@@ -77,8 +75,10 @@ export async function streamGenerate(
     return;
   }
 
+  // Cache key omits the userKeys (security) — we only hash the semantic part.
+  const cacheKey = semanticRequest(req);
   if (isCacheConfigured()) {
-    const cached = await getCached<GenerateResult>(req);
+    const cached = await getCached<GenerateResult>(cacheKey);
     if (cached) {
       emit({
         type: "cache-hit",
@@ -92,11 +92,11 @@ export async function streamGenerate(
   try {
     if (req.mode === "create") {
       const result = await runCreateChain(req, emit);
-      await setCached(req, result);
+      await setCached(cacheKey, result);
       emit({ type: "result", result });
     } else {
       const result = await runImproveChain(req, emit);
-      await setCached(req, result);
+      await setCached(cacheKey, result);
       emit({ type: "result", result });
     }
   } catch (err) {
@@ -210,4 +210,14 @@ function modelFromAnalyst(
 function fallback(req: CreateRequest | ImproveRequest): GenerateResult {
   if (req.mode === "create") return buildCreateResultFromTemplates(req);
   return buildImproveResultFromTemplates(req);
+}
+
+/**
+ * Strip userKeys before hashing for cache so different users with different
+ * keys share the same cached kit for the same semantic request.
+ */
+function semanticRequest(req: CreateRequest | ImproveRequest): unknown {
+  const clone: Record<string, unknown> = { ...(req as Record<string, unknown>) };
+  delete clone.userKeys;
+  return clone;
 }

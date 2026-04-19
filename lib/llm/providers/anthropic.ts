@@ -7,8 +7,12 @@ const MODEL_BY_ROLE: Record<Role, string> = {
   critic: "claude-opus-4-7",
 };
 
-export function isAnthropicConfigured(): boolean {
-  return Boolean(process.env.ANTHROPIC_API_KEY);
+export function resolveAnthropicKey(userKey?: string): string | null {
+  return userKey?.trim() || process.env.ANTHROPIC_API_KEY || null;
+}
+
+export function isAnthropicConfigured(userKey?: string): boolean {
+  return Boolean(resolveAnthropicKey(userKey));
 }
 
 export async function callAnthropic(params: {
@@ -16,10 +20,12 @@ export async function callAnthropic(params: {
   systemPrompt: string;
   userMessage: string;
   maxTokens?: number;
+  apiKey?: string;
 }): Promise<string | null> {
-  if (!isAnthropicConfigured()) return null;
+  const apiKey = resolveAnthropicKey(params.apiKey);
+  if (!apiKey) return null;
 
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const client = new Anthropic({ apiKey });
   const response = await client.messages.create({
     model: MODEL_BY_ROLE[params.role],
     max_tokens: params.maxTokens ?? 2048,

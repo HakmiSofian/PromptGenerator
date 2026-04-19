@@ -6,7 +6,13 @@ import ResultView from "./ResultView";
 import GenerationProgress from "./GenerationProgress";
 import { useGenerateStream } from "@/lib/client/useGenerateStream";
 import { titleFromRequest } from "@/lib/client/useKitHistory";
-import type { CreateResult, TaskType, Size, GenerateResult } from "@/lib/types";
+import type {
+  CreateResult,
+  TaskType,
+  Size,
+  GenerateResult,
+  UserApiKeys,
+} from "@/lib/types";
 
 const TASK_OPTIONS: { value: TaskType; title: string; sub: string }[] = [
   { value: "create", title: "Créer un nouveau projet", sub: "Site, app, script, outil de zéro" },
@@ -26,6 +32,7 @@ const SIZE_OPTIONS: { value: Size; title: string; sub: string }[] = [
 export default function CreateFlow({
   initialResult,
   onGenerated,
+  userKeys,
 }: {
   initialResult?: CreateResult | null;
   onGenerated?: (
@@ -33,6 +40,7 @@ export default function CreateFlow({
     result: GenerateResult,
     title: string
   ) => void;
+  userKeys?: UserApiKeys;
 }) {
   const [step, setStep] = useState<1 | 2 | 3 | 4 | "result">(
     initialResult ? "result" : 1
@@ -69,7 +77,15 @@ export default function CreateFlow({
   };
 
   const submit = async () => {
-    const request = { mode: "create", goal, taskType, size, context, coach };
+    const request = {
+      mode: "create",
+      goal,
+      taskType,
+      size,
+      context,
+      coach,
+      userKeys,
+    };
     await run(request, (res) => {
       if (res.mode !== "create") return;
       setResult(res);
