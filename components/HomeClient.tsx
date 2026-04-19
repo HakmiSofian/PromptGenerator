@@ -9,6 +9,7 @@ import ProvidersBadge from "@/components/ProvidersBadge";
 import HistoryDrawer from "@/components/HistoryDrawer";
 import ByokSettings from "@/components/ByokSettings";
 import OnboardingTour from "@/components/OnboardingTour";
+import ThemeToggle from "@/components/ThemeToggle";
 import { readSharedFromHash, clearShareHash } from "@/lib/client/shareLink";
 import type { ProvidersStatus } from "@/lib/llm/orchestrator";
 import type {
@@ -90,6 +91,7 @@ export default function HomeClient({
       <OnboardingTour />
       <header className="mb-8 text-center relative no-print">
         <div className="absolute right-0 top-0 flex items-center gap-2">
+          <ThemeToggle />
           <ByokSettings
             onChange={(keys, hasAny) => {
               setUserKeys(keys);
@@ -98,10 +100,10 @@ export default function HomeClient({
           />
           <HistoryDrawer onRestore={onRestore} registerSave={registerSave} />
         </div>
-        <h1 className="text-3xl md:text-4xl font-bold text-slate-900">
+        <h1 className="text-3xl md:text-4xl font-bold text-slate-900 dark:text-slate-50">
           Prompt Kit pour Claude Code
         </h1>
-        <p className="mt-2 text-slate-600">
+        <p className="mt-2 text-slate-600 dark:text-slate-400">
           Décris ce que tu veux faire en français normal. On te donne le bon
           prompt, le bon modèle et le kit mémoire à coller dans Claude Code.
         </p>
@@ -122,7 +124,7 @@ export default function HomeClient({
         <ModeTabs mode={mode} onChange={onTabChange} />
       </div>
 
-      <main className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 md:p-8">
+      <main className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 p-6 md:p-8">
         {mode === "create" && (
           <CreateFlow
             key={restored?.mode === "create" ? restored.id : "fresh-create"}
