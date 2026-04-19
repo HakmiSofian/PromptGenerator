@@ -5,6 +5,7 @@ import { CopyButton, DownloadButton } from "./CopyButton";
 import CommitteeRibbon from "./CommitteeRibbon";
 import DownloadKitButton from "./DownloadKitButton";
 import CostPill from "./CostPill";
+import ShareButton from "./ShareButton";
 
 export default function ResultView({
   result,
@@ -38,10 +39,13 @@ export default function ResultView({
             Tu veux tout d&apos;un coup ?
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
-            Un seul fichier ZIP avec CLAUDE.md, le prompt initial, les prompts de suivi et un README.
+            ZIP complet, ou lien à envoyer à un collègue qui ouvrira ce kit directement.
           </p>
         </div>
-        <DownloadKitButton result={result} />
+        <div className="flex flex-wrap gap-2">
+          <ShareButton result={result} />
+          <DownloadKitButton result={result} />
+        </div>
       </div>
 
       <div className="mb-6 p-4 bg-indigo-50 border border-indigo-200 rounded-lg">

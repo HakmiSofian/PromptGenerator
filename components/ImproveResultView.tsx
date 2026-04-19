@@ -4,6 +4,7 @@ import type { ImproveResult, Issue } from "@/lib/types";
 import { CopyButton } from "./CopyButton";
 import CommitteeRibbon from "./CommitteeRibbon";
 import CostPill from "./CostPill";
+import ShareButton from "./ShareButton";
 
 const SEVERITY_STYLES: Record<
   Issue["severity"],
@@ -35,6 +36,10 @@ export default function ImproveResultView({
       </p>
 
       {result.providersUsed && <CommitteeRibbon providers={result.providersUsed} />}
+
+      <div className="mb-6 flex justify-end">
+        <ShareButton result={result} />
+      </div>
 
       <div className="mb-6">
         <h3 className="font-semibold mb-2">🩺 Ce qui clochait</h3>

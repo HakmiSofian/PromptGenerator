@@ -3,6 +3,7 @@
 import type { AuditResult, Diagnosis } from "@/lib/types";
 import { CopyButton, DownloadButton } from "./CopyButton";
 import CostPill from "./CostPill";
+import ShareButton from "./ShareButton";
 
 const SEVERITY: Record<
   Diagnosis["severity"],
@@ -63,6 +64,10 @@ export default function AuditResultView({
             </p>
           </div>
         </div>
+      </div>
+
+      <div className="mb-6 flex justify-end">
+        <ShareButton result={result} />
       </div>
 
       <div className="mb-6">

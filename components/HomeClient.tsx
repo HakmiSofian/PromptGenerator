@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import ModeTabs from "@/components/ModeTabs";
 import CreateFlow from "@/components/CreateFlow";
 import ImproveFlow from "@/components/ImproveFlow";
@@ -9,6 +9,7 @@ import ProvidersBadge from "@/components/ProvidersBadge";
 import HistoryDrawer from "@/components/HistoryDrawer";
 import ByokSettings from "@/components/ByokSettings";
 import OnboardingTour from "@/components/OnboardingTour";
+import { readSharedFromHash, clearShareHash } from "@/lib/client/shareLink";
 import type { ProvidersStatus } from "@/lib/llm/orchestrator";
 import type {
   CreateResult,
@@ -33,6 +34,22 @@ export default function HomeClient({
   const saveRef = useRef<
     ((e: Omit<HistoryEntry, "id" | "createdAt">) => HistoryEntry) | null
   >(null);
+
+  useEffect(() => {
+    const shared = readSharedFromHash();
+    if (!shared) return;
+    const fakeEntry: HistoryEntry = {
+      id: `shared-${Date.now()}`,
+      createdAt: Date.now(),
+      mode: shared.mode,
+      title: "Kit partagé",
+      request: {},
+      result: shared,
+    };
+    setMode(shared.mode);
+    setRestored(fakeEntry);
+    clearShareHash();
+  }, []);
 
   const registerSave: Parameters<typeof HistoryDrawer>[0]["registerSave"] = (
     fn
