@@ -5,6 +5,7 @@ import type { GenerateResult } from "@/lib/types";
 
 export type ClientStreamEvent =
   | { type: "status"; message: string }
+  | { type: "cache-hit"; message: string }
   | {
       type: "role-start";
       role: "analyst" | "writer" | "critic";
@@ -126,6 +127,9 @@ function applyEvent(
 ) {
   switch (event.type) {
     case "status":
+      setProgress((p) => ({ ...p, statusMessage: event.message }));
+      break;
+    case "cache-hit":
       setProgress((p) => ({ ...p, statusMessage: event.message }));
       break;
     case "role-start":

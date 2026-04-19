@@ -14,6 +14,7 @@ import type {
 import { isAnthropicConfigured } from "@/lib/llm/providers/anthropic";
 import { isOpenAIConfigured } from "@/lib/llm/providers/openai";
 import { isGoogleConfigured } from "@/lib/llm/providers/google";
+import { getCached, isCacheConfigured, setCached } from "@/lib/llm/cache";
 import {
   runAnalystCreate,
   runWriterCreate,
@@ -45,6 +46,7 @@ export function getProvidersStatus(): ProvidersStatus {
 
 export type StreamEvent =
   | { type: "status"; message: string }
+  | { type: "cache-hit"; message: string }
   | {
       type: "role-start";
       role: "analyst" | "writer" | "critic";
@@ -75,12 +77,26 @@ export async function streamGenerate(
     return;
   }
 
+  if (isCacheConfigured()) {
+    const cached = await getCached<GenerateResult>(req);
+    if (cached) {
+      emit({
+        type: "cache-hit",
+        message: "⚡ Cache hit · résultat instantané (0 appel IA, 0 € dépensé)",
+      });
+      emit({ type: "result", result: cached });
+      return;
+    }
+  }
+
   try {
     if (req.mode === "create") {
       const result = await runCreateChain(req, emit);
+      await setCached(req, result);
       emit({ type: "result", result });
     } else {
       const result = await runImproveChain(req, emit);
+      await setCached(req, result);
       emit({ type: "result", result });
     }
   } catch (err) {
