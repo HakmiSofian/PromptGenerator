@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { AuditResult, GenerateResult, UserApiKeys } from "@/lib/types";
 import AuditResultView from "./AuditResultView";
 import GenerationProgress from "./GenerationProgress";
+import ClaudeMdScoreCard from "./ClaudeMdScoreCard";
 import { useGenerateStream } from "@/lib/client/useGenerateStream";
 import { titleFromRequest } from "@/lib/client/useKitHistory";
 
@@ -98,6 +99,7 @@ export default function AuditFlow({
               value={currentClaudeMd}
               onChange={(e) => setCurrentClaudeMd(e.target.value)}
             />
+            <ClaudeMdScoreCard value={currentClaudeMd} />
           </div>
         </details>
 
