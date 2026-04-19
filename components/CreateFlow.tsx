@@ -5,7 +5,8 @@ import Examples, { type Example } from "./Examples";
 import ResultView from "./ResultView";
 import GenerationProgress from "./GenerationProgress";
 import { useGenerateStream } from "@/lib/client/useGenerateStream";
-import type { CreateResult, TaskType, Size } from "@/lib/types";
+import { titleFromRequest } from "@/lib/client/useKitHistory";
+import type { CreateResult, TaskType, Size, GenerateResult } from "@/lib/types";
 
 const TASK_OPTIONS: { value: TaskType; title: string; sub: string }[] = [
   { value: "create", title: "Créer un nouveau projet", sub: "Site, app, script, outil de zéro" },
@@ -22,14 +23,28 @@ const SIZE_OPTIONS: { value: Size; title: string; sub: string }[] = [
   { value: "large", title: "Gros · plusieurs sessions", sub: "Projet entier, architecture, refonte" },
 ];
 
-export default function CreateFlow() {
-  const [step, setStep] = useState<1 | 2 | 3 | 4 | "result">(1);
+export default function CreateFlow({
+  initialResult,
+  onGenerated,
+}: {
+  initialResult?: CreateResult | null;
+  onGenerated?: (
+    request: unknown,
+    result: GenerateResult,
+    title: string
+  ) => void;
+}) {
+  const [step, setStep] = useState<1 | 2 | 3 | 4 | "result">(
+    initialResult ? "result" : 1
+  );
   const [goal, setGoal] = useState("");
   const [taskType, setTaskType] = useState<TaskType | "">("");
   const [size, setSize] = useState<Size | "">("");
   const [context, setContext] = useState("");
   const [coach, setCoach] = useState(true);
-  const [result, setResult] = useState<CreateResult | null>(null);
+  const [result, setResult] = useState<CreateResult | null>(
+    initialResult ?? null
+  );
   const { progress, error, run, reset } = useGenerateStream();
   const loading = progress.active;
 
@@ -54,14 +69,13 @@ export default function CreateFlow() {
   };
 
   const submit = async () => {
-    await run(
-      { mode: "create", goal, taskType, size, context, coach },
-      (res) => {
-        if (res.mode !== "create") return;
-        setResult(res);
-        setStep("result");
-      }
-    );
+    const request = { mode: "create", goal, taskType, size, context, coach };
+    await run(request, (res) => {
+      if (res.mode !== "create") return;
+      setResult(res);
+      setStep("result");
+      onGenerated?.(request, res, titleFromRequest("create", request));
+    });
   };
 
   const restart = () => {

@@ -1,24 +1,39 @@
 "use client";
 
 import { useState } from "react";
-import type { ImproveResult } from "@/lib/types";
+import type { ImproveResult, GenerateResult } from "@/lib/types";
 import ImproveResultView from "./ImproveResultView";
 import GenerationProgress from "./GenerationProgress";
 import { useGenerateStream } from "@/lib/client/useGenerateStream";
+import { titleFromRequest } from "@/lib/client/useKitHistory";
 
-export default function ImproveFlow() {
+export default function ImproveFlow({
+  initialResult,
+  onGenerated,
+}: {
+  initialResult?: ImproveResult | null;
+  onGenerated?: (
+    request: unknown,
+    result: GenerateResult,
+    title: string
+  ) => void;
+}) {
   const [prompt, setPrompt] = useState("");
   const [response, setResponse] = useState("");
-  const [result, setResult] = useState<ImproveResult | null>(null);
+  const [result, setResult] = useState<ImproveResult | null>(
+    initialResult ?? null
+  );
   const { progress, error, run, reset } = useGenerateStream();
   const loading = progress.active;
 
   const canSubmit = prompt.trim().length >= 5 && !loading;
 
   const submit = async () => {
-    await run({ mode: "improve", prompt, response }, (res) => {
+    const request = { mode: "improve", prompt, response };
+    await run(request, (res) => {
       if (res.mode !== "improve") return;
       setResult(res);
+      onGenerated?.(request, res, titleFromRequest("improve", request));
     });
   };
 
