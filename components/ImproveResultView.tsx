@@ -3,6 +3,7 @@
 import type { ImproveResult, Issue } from "@/lib/types";
 import { CopyButton } from "./CopyButton";
 import CommitteeRibbon from "./CommitteeRibbon";
+import CostPill from "./CostPill";
 
 const SEVERITY_STYLES: Record<
   Issue["severity"],
@@ -22,9 +23,12 @@ export default function ImproveResultView({
 }) {
   return (
     <section>
-      <div className="flex items-start justify-between mb-2">
+      <div className="flex items-start justify-between mb-2 gap-2">
         <h2 className="text-xl font-semibold">Diagnostic &amp; prompt amélioré</h2>
-        <SourceBadge source={result.source} />
+        <div className="flex flex-col items-end gap-1">
+          <SourceBadge source={result.source} />
+          {result.cost && <CostPill cost={result.cost} />}
+        </div>
       </div>
       <p className="text-slate-500 text-sm mb-6">
         Voici ce qui manquait et la version corrigée.

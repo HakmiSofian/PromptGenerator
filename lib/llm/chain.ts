@@ -1,8 +1,9 @@
-import { callAnthropic } from "@/lib/llm/providers/anthropic";
+import { callAnthropic, type LlmResponse } from "@/lib/llm/providers/anthropic";
 import { callOpenAI } from "@/lib/llm/providers/openai";
 import { callGoogle } from "@/lib/llm/providers/google";
 import { extractJson } from "@/lib/llm/json";
 import { pickProvider, type Provider, type Role } from "@/lib/llm/assignment";
+import { computeCostUsd } from "@/lib/llm/pricing";
 import {
   ANALYST_SYSTEM_PROMPT,
   IMPROVE_ANALYST_SYSTEM_PROMPT,
@@ -53,6 +54,19 @@ export type AnalystImproveOutput = {
 
 export type WriterImproveOutput = { improvedPrompt: string };
 
+export type RoleUsage = {
+  inputTokens: number;
+  outputTokens: number;
+  costUsd: number;
+  model: string;
+};
+
+export type RoleRun<T> = {
+  output: T;
+  provider: Provider;
+  usage: RoleUsage;
+};
+
 async function callLlm(params: {
   role: Role;
   provider: Provider;
@@ -60,7 +74,7 @@ async function callLlm(params: {
   userMessage: string;
   maxTokens?: number;
   userKeys?: UserApiKeys;
-}): Promise<string | null> {
+}): Promise<LlmResponse | null> {
   if (params.provider === "anthropic")
     return callAnthropic({
       role: params.role,
@@ -93,7 +107,7 @@ async function runRole<T>(
   userMessage: string,
   maxTokens: number,
   userKeys?: UserApiKeys
-): Promise<{ output: T; provider: Provider }> {
+): Promise<RoleRun<T>> {
   const provider = pickProvider(role, userKeys);
   const raw = await callLlm({
     role,
@@ -103,8 +117,23 @@ async function runRole<T>(
     maxTokens,
     userKeys,
   });
-  if (!raw) throw new Error(`${role} (${provider}) : aucune réponse`);
-  return { output: extractJson<T>(raw), provider };
+  if (!raw || !raw.text)
+    throw new Error(`${role} (${provider}) : aucune réponse`);
+  const { costUsd } = computeCostUsd(
+    raw.model,
+    raw.inputTokens,
+    raw.outputTokens
+  );
+  return {
+    output: extractJson<T>(raw.text),
+    provider,
+    usage: {
+      inputTokens: raw.inputTokens,
+      outputTokens: raw.outputTokens,
+      costUsd,
+      model: raw.model,
+    },
+  };
 }
 
 function stripKeys<T extends { userKeys?: unknown }>(req: T): Omit<T, "userKeys"> {

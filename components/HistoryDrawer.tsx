@@ -6,6 +6,7 @@ import {
   formatRelativeTime,
   type HistoryEntry,
 } from "@/lib/client/useKitHistory";
+import { formatUsd } from "@/lib/llm/pricing";
 
 export default function HistoryDrawer({
   onRestore,
@@ -40,6 +41,11 @@ export default function HistoryDrawer({
 
   if (!hydrated) return null;
 
+  const totalSpent = entries.reduce(
+    (sum, e) => sum + (e.result.cost?.totalUsd ?? 0),
+    0
+  );
+
   return (
     <div className="relative" ref={panelRef}>
       <button
@@ -58,9 +64,16 @@ export default function HistoryDrawer({
       {open && (
         <div className="absolute right-0 top-full mt-2 w-80 max-h-[70vh] overflow-y-auto bg-white rounded-xl shadow-lg border border-slate-200 z-20">
           <div className="flex items-center justify-between p-3 border-b border-slate-100">
-            <span className="text-sm font-semibold text-slate-800">
-              Kits récents
-            </span>
+            <div className="flex flex-col">
+              <span className="text-sm font-semibold text-slate-800">
+                Kits récents
+              </span>
+              {totalSpent > 0 && (
+                <span className="text-[11px] text-slate-500 mt-0.5">
+                  Dépensé au total : {formatUsd(totalSpent)}
+                </span>
+              )}
+            </div>
             {entries.length > 0 && (
               <button
                 onClick={() => {

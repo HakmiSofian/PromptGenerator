@@ -4,6 +4,7 @@ import type { CreateResult } from "@/lib/types";
 import { CopyButton, DownloadButton } from "./CopyButton";
 import CommitteeRibbon from "./CommitteeRibbon";
 import DownloadKitButton from "./DownloadKitButton";
+import CostPill from "./CostPill";
 
 export default function ResultView({
   result,
@@ -14,13 +15,16 @@ export default function ResultView({
   coach: boolean;
   onRestart: () => void;
 }) {
-  const { model, claudeMd, initialPrompt, followups, howto, source, providersUsed } = result;
+  const { model, claudeMd, initialPrompt, followups, howto, source, providersUsed, cost } = result;
 
   return (
     <section>
-      <div className="flex items-start justify-between mb-2">
+      <div className="flex items-start justify-between mb-2 gap-2">
         <h2 className="text-xl font-semibold">Ton kit Claude Code est prêt</h2>
-        <SourceBadge source={source} />
+        <div className="flex flex-col items-end gap-1">
+          <SourceBadge source={source} />
+          {cost && <CostPill cost={cost} />}
+        </div>
       </div>
       <p className="text-slate-500 text-sm mb-6">
         Suis les étapes dans l&apos;ordre. Chaque bloc se copie en un clic.

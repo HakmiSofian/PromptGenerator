@@ -84,7 +84,11 @@ export async function streamGenerate(
         type: "cache-hit",
         message: "⚡ Cache hit · résultat instantané (0 appel IA, 0 € dépensé)",
       });
-      emit({ type: "result", result: cached });
+      const overridden = {
+        ...cached,
+        cost: { totalUsd: 0, inputTokens: 0, outputTokens: 0, cached: true },
+      } as GenerateResult;
+      emit({ type: "result", result: overridden });
       return;
     }
   }
@@ -151,6 +155,7 @@ async function runCreateChain(
       writer: writer.provider,
       critic: critic.provider,
     },
+    cost: sumCost([analyst.usage, writer.usage, critic.usage]),
   };
 }
 
@@ -183,6 +188,17 @@ async function runImproveChain(
       analyst: analyst.provider,
       writer: writer.provider,
     },
+    cost: sumCost([analyst.usage, writer.usage]),
+  };
+}
+
+function sumCost(
+  usages: { inputTokens: number; outputTokens: number; costUsd: number }[]
+) {
+  return {
+    totalUsd: usages.reduce((s, u) => s + u.costUsd, 0),
+    inputTokens: usages.reduce((s, u) => s + u.inputTokens, 0),
+    outputTokens: usages.reduce((s, u) => s + u.outputTokens, 0),
   };
 }
 

@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import type { Role } from "@/lib/llm/assignment";
+import type { LlmResponse } from "./anthropic";
 
 const MODEL_BY_ROLE: Record<Role, string> = {
   analyst: "gpt-4.1-mini",
@@ -21,13 +22,14 @@ export async function callOpenAI(params: {
   userMessage: string;
   maxTokens?: number;
   apiKey?: string;
-}): Promise<string | null> {
+}): Promise<LlmResponse | null> {
   const apiKey = resolveOpenAIKey(params.apiKey);
   if (!apiKey) return null;
 
+  const model = MODEL_BY_ROLE[params.role];
   const client = new OpenAI({ apiKey });
   const completion = await client.chat.completions.create({
-    model: MODEL_BY_ROLE[params.role],
+    model,
     max_tokens: params.maxTokens ?? 2048,
     response_format: { type: "json_object" },
     messages: [
@@ -36,5 +38,10 @@ export async function callOpenAI(params: {
     ],
   });
 
-  return completion.choices[0]?.message?.content ?? null;
+  return {
+    text: completion.choices[0]?.message?.content ?? "",
+    inputTokens: completion.usage?.prompt_tokens ?? 0,
+    outputTokens: completion.usage?.completion_tokens ?? 0,
+    model,
+  };
 }

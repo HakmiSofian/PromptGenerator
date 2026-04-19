@@ -68,6 +68,13 @@ export type ProvidersUsed = {
   critic?: ProviderName;
 };
 
+export type CostBreakdown = {
+  totalUsd: number;
+  inputTokens: number;
+  outputTokens: number;
+  cached?: boolean;
+};
+
 export type CreateResult = {
   mode: "create";
   source: "llm" | "template";
@@ -77,6 +84,7 @@ export type CreateResult = {
   followups: Followup[];
   howto: string;
   providersUsed?: ProvidersUsed;
+  cost?: CostBreakdown;
 };
 
 export type ImproveResult = {
@@ -85,6 +93,7 @@ export type ImproveResult = {
   issues: Issue[];
   improvedPrompt: string;
   providersUsed?: ProvidersUsed;
+  cost?: CostBreakdown;
 };
 
 export type GenerateResult = CreateResult | ImproveResult;
