@@ -10,3 +10,54 @@ pre {
   white-space: pre-wrap;
   word-break: break-word;
 }
+
+@media print {
+  html, body {
+    background: #fff !important;
+    color: #000 !important;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 11pt;
+    line-height: 1.5;
+  }
+
+  .no-print,
+  .no-print * {
+    display: none !important;
+  }
+
+  main {
+    box-shadow: none !important;
+    border: none !important;
+    background: #fff !important;
+    padding: 0 !important;
+  }
+
+  pre {
+    background: #f7f7f7 !important;
+    color: #000 !important;
+    border: 1px solid #ddd;
+    padding: 0.6rem !important;
+    page-break-inside: avoid;
+    font-size: 9pt !important;
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+  }
+
+  h1, h2, h3, h4 {
+    color: #000 !important;
+    page-break-after: avoid;
+  }
+
+  a {
+    color: #000 !important;
+    text-decoration: none;
+  }
+
+  .print-block {
+    page-break-inside: avoid;
+    margin-bottom: 1.2rem;
+  }
+
+  .print-page-break {
+    page-break-before: always;
+  }
+}

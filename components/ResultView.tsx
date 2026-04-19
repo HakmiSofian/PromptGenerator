@@ -8,6 +8,7 @@ import CostPill from "./CostPill";
 import ShareButton from "./ShareButton";
 import RecommendationsCard from "./RecommendationsCard";
 import FeedbackBar from "./FeedbackBar";
+import PrintButton from "./PrintButton";
 
 export default function ResultView({
   result,
@@ -44,7 +45,8 @@ export default function ResultView({
             ZIP complet, ou lien à envoyer à un collègue qui ouvrira ce kit directement.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 no-print">
+          <PrintButton />
           <ShareButton result={result} />
           <DownloadKitButton result={result} />
         </div>
@@ -105,7 +107,7 @@ export default function ResultView({
             >
               <div className="flex items-center justify-between px-4 py-2 bg-slate-50 border-b border-slate-200">
                 <span className="font-medium text-sm">{f.title}</span>
-                <CopyButton text={f.body} />
+                <span className="no-print"><CopyButton text={f.body} /></span>
               </div>
               <pre className="text-sm p-3 bg-white">{f.body}</pre>
             </div>
@@ -119,9 +121,11 @@ export default function ResultView({
         {howto}
       </div>
 
-      <FeedbackBar result={result} />
+      <div className="no-print">
+        <FeedbackBar result={result} />
+      </div>
 
-      <div className="flex justify-center mt-8">
+      <div className="flex justify-center mt-8 no-print">
         <button
           onClick={onRestart}
           className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-5 py-2 rounded-lg"
@@ -155,7 +159,7 @@ function Block({
             <span className="text-xs font-normal text-slate-500"> — {subtitle}</span>
           )}
         </h3>
-        <div className="flex gap-2">
+        <div className="flex gap-2 no-print">
           <DownloadButton text={text} filename={filename} />
           <CopyButton text={text} />
         </div>

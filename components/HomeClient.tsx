@@ -88,7 +88,7 @@ export default function HomeClient({
   return (
     <div className="max-w-3xl mx-auto px-4 py-10">
       <OnboardingTour />
-      <header className="mb-8 text-center relative">
+      <header className="mb-8 text-center relative no-print">
         <div className="absolute right-0 top-0 flex items-center gap-2">
           <ByokSettings
             onChange={(keys, hasAny) => {
@@ -118,7 +118,9 @@ export default function HomeClient({
         </div>
       </header>
 
-      <ModeTabs mode={mode} onChange={onTabChange} />
+      <div className="no-print">
+        <ModeTabs mode={mode} onChange={onTabChange} />
+      </div>
 
       <main className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 md:p-8">
         {mode === "create" && (
@@ -165,7 +167,7 @@ export default function HomeClient({
         )}
       </main>
 
-      <footer className="text-center text-xs text-slate-400 mt-8">
+      <footer className="text-center text-xs text-slate-400 mt-8 no-print">
         Open source · 100 % en français · orchestration multi-IA spécialisée
       </footer>
     </div>

@@ -5,6 +5,7 @@ import { CopyButton, DownloadButton } from "./CopyButton";
 import CostPill from "./CostPill";
 import ShareButton from "./ShareButton";
 import FeedbackBar from "./FeedbackBar";
+import PrintButton from "./PrintButton";
 
 const SEVERITY: Record<
   Diagnosis["severity"],
@@ -67,7 +68,8 @@ export default function AuditResultView({
         </div>
       </div>
 
-      <div className="mb-6 flex justify-end">
+      <div className="mb-6 flex justify-end gap-2 no-print">
+        <PrintButton />
         <ShareButton result={result} />
       </div>
 
@@ -130,7 +132,7 @@ export default function AuditResultView({
       <div className="mb-6">
         <div className="flex items-center justify-between mb-2">
           <h3 className="font-semibold">📄 Nouveau CLAUDE.md</h3>
-          <div className="flex gap-2">
+          <div className="flex gap-2 no-print">
             <DownloadButton text={result.newClaudeMd} filename="CLAUDE.md" />
             <CopyButton text={result.newClaudeMd} />
           </div>
@@ -146,7 +148,7 @@ export default function AuditResultView({
       <div className="mb-6">
         <div className="flex items-center justify-between mb-2">
           <h3 className="font-semibold">🚀 Prompt de remise sur les rails</h3>
-          <CopyButton text={result.recoveryPrompt} />
+          <span className="no-print"><CopyButton text={result.recoveryPrompt} /></span>
         </div>
         <pre className="bg-slate-900 text-slate-100 text-sm p-4 rounded-lg overflow-x-auto">
           {result.recoveryPrompt}
@@ -156,9 +158,11 @@ export default function AuditResultView({
         </p>
       </div>
 
-      <FeedbackBar result={result} />
+      <div className="no-print">
+        <FeedbackBar result={result} />
+      </div>
 
-      <div className="flex justify-center mt-8">
+      <div className="flex justify-center mt-8 no-print">
         <button
           onClick={onRestart}
           className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-5 py-2 rounded-lg"
