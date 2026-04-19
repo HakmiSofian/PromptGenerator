@@ -8,6 +8,7 @@ import AuditFlow from "@/components/AuditFlow";
 import ProvidersBadge from "@/components/ProvidersBadge";
 import HistoryDrawer from "@/components/HistoryDrawer";
 import ByokSettings from "@/components/ByokSettings";
+import OnboardingTour from "@/components/OnboardingTour";
 import type { ProvidersStatus } from "@/lib/llm/orchestrator";
 import type {
   CreateResult,
@@ -69,6 +70,7 @@ export default function HomeClient({
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-10">
+      <OnboardingTour />
       <header className="mb-8 text-center relative">
         <div className="absolute right-0 top-0 flex items-center gap-2">
           <ByokSettings
