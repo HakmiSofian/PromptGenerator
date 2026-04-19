@@ -4,6 +4,7 @@ import type { AuditResult, Diagnosis } from "@/lib/types";
 import { CopyButton, DownloadButton } from "./CopyButton";
 import CostPill from "./CostPill";
 import ShareButton from "./ShareButton";
+import FeedbackBar from "./FeedbackBar";
 
 const SEVERITY: Record<
   Diagnosis["severity"],
@@ -154,6 +155,8 @@ export default function AuditResultView({
           Tape <code>/clear</code> dans Claude Code, puis colle ce prompt.
         </p>
       </div>
+
+      <FeedbackBar result={result} />
 
       <div className="flex justify-center mt-8">
         <button

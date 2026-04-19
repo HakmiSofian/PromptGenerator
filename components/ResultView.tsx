@@ -7,6 +7,7 @@ import DownloadKitButton from "./DownloadKitButton";
 import CostPill from "./CostPill";
 import ShareButton from "./ShareButton";
 import RecommendationsCard from "./RecommendationsCard";
+import FeedbackBar from "./FeedbackBar";
 
 export default function ResultView({
   result,
@@ -117,6 +118,8 @@ export default function ResultView({
       <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg text-sm whitespace-pre-line">
         {howto}
       </div>
+
+      <FeedbackBar result={result} />
 
       <div className="flex justify-center mt-8">
         <button

@@ -5,6 +5,7 @@ import { CopyButton } from "./CopyButton";
 import CommitteeRibbon from "./CommitteeRibbon";
 import CostPill from "./CostPill";
 import ShareButton from "./ShareButton";
+import FeedbackBar from "./FeedbackBar";
 
 const SEVERITY_STYLES: Record<
   Issue["severity"],
@@ -85,6 +86,8 @@ export default function ImproveResultView({
           <li>Claude devrait commencer par un plan : valide-le avant qu&apos;il code.</li>
         </ol>
       </div>
+
+      <FeedbackBar result={result} />
 
       <div className="flex justify-center mt-8">
         <button
