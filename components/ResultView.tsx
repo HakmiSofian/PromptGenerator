@@ -6,6 +6,7 @@ import CommitteeRibbon from "./CommitteeRibbon";
 import DownloadKitButton from "./DownloadKitButton";
 import CostPill from "./CostPill";
 import ShareButton from "./ShareButton";
+import RecommendationsCard from "./RecommendationsCard";
 
 export default function ResultView({
   result,
@@ -110,6 +111,8 @@ export default function ResultView({
           ))}
         </div>
       </div>
+
+      <RecommendationsCard result={result} />
 
       <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg text-sm whitespace-pre-line">
         {howto}
